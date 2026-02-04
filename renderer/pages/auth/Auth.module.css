@@ -1,0 +1,199 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.contentWrapper {
+  display: flex;
+  flex-direction: column;
+  width: 557px;
+  max-width: 557px;
+  margin: auto;
+  border: 3px solid #F3F3F3;
+  border-radius: 20px;
+  padding: 0 3rem 4.5rem 3rem;
+}
+
+.title {
+  font-size: 2rem;
+  line-height: 4rem;
+  text-align: center;
+  margin: 0;
+  font-family: 'Kreon', serif;
+  font-weight: bold;
+}
+
+.titleSaveVideo {
+  font-size: 1rem;
+  line-height: 4rem;
+  text-align: center;
+  margin: 0;
+}
+
+.teamContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  justify-content: center;
+}
+
+.teamTitle {
+  font-size: 1rem;
+  text-align: center;
+  margin: 0;
+}
+
+.teamImg {
+  border-radius: 50%;
+  width: 2.5rem;
+}
+
+.sub {
+  color: black;
+  text-align: center;
+  line-height: 0;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.sub span {
+  cursor: pointer;
+  color: #68E996;
+}
+
+.btnContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  max-width: 311px;
+  width: 311px;
+  margin: auto;
+  flex-wrap: wrap;
+  flex-direction: column;
+}
+
+.signInBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  width: 100%;
+  font-family: 'Ubuntu', system-ui, -apple-system, "system-ui", "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  font-size: 21px;
+  line-height: normal;
+  color: rgb(22, 19, 25);
+  border-radius: 20px;
+  background: #FFF;
+  box-shadow: 0px 4px 50px 0px rgba(0, 0, 0, 0.07);
+  border: none;
+  cursor: pointer;
+  transition-duration: 200ms;
+}
+
+.signInBtn:hover {
+  background-color: #F8F8F8
+}
+
+.signInBtn > img {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.5rem;
+  object-fit: contain;
+}
+
+.separator {
+  text-align: center;
+  margin: 1rem 0 2rem 0;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.separator h2 {
+  position: relative;
+  background: #FBFBFB;
+  display: inline-block;
+  font-size: 1.25rem;
+  padding: 0 0.9rem;
+  margin: 0;
+  margin-top: -4px;
+  z-index: 1;
+  color: black;
+  font-family: 'Kreon', serif;
+  font-weight: bold;
+}
+
+.line {
+  height: 1px;
+  background: #E0E0E0;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.contentWrapper form {
+  display: flex;
+  flex-direction: column;
+}
+
+.contentWrapper form input {
+  margin-bottom: 0.7rem;
+}
+
+/* Green border on focus for Mantine inputs */
+.contentWrapper form :global(.mantine-TextInput-input:focus-within),
+.contentWrapper form :global(.mantine-PasswordInput-input:focus-within) {
+  border-color: #68E996 !important;
+}
+
+.contentWrapper form :global(.mantine-TextInput-input:focus),
+.contentWrapper form :global(.mantine-PasswordInput-input:focus) {
+  border-color: #68E996 !important;
+}
+
+.submitButton {
+  margin: 1rem 0;
+  background-color: #68E996;
+  height: 57px;
+  width: 100%;
+  text-align: center;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  color: black;
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submitButton:disabled,
+.submitButton[disabled] {
+  border: 1px solid #999999;
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+}
+
+.contentWrapper form .sub {
+  margin-bottom: 0;
+  line-height: 35px;
+}
+
+.contentWrapper form .sub a {
+  color: #68E996;
+  text-decoration: none;
+}
+
+.contentWrapper form .sub a:hover {
+  text-decoration: underline;
+}

@@ -78,7 +78,7 @@ function Home() {
 
         {/* Demo Video Section */}
         <div className="w-full md:w-[90%] flex flex-col gap-8 md:gap-16 mb-10 mt-[10%]">
-          <h3 className="text-2xl font-normal relative pb-4 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[3.5px] after:bg-black">
+          <h3 className="text-2xl font-kreon relative pb-4 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[3.5px] after:bg-black">
             "To record great videos, one must first rewind." - Lincoln, probably.
           </h3>
           <DemoVideoPlayer

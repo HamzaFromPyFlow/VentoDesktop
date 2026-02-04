@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Header.module.css';
 
-function Header({ pricing = true, startRecording = true }) {
+function Header({ pricing = true, startRecording = true, login = true, signup = true }) {
   return (
     <nav className="relative z-10 mt-4">
       <div className="max-w-content mx-auto px-6 py-4 flex items-center justify-between">
@@ -40,18 +40,22 @@ function Header({ pricing = true, startRecording = true }) {
               Start Recording
             </a>
           )}
-          <a
-            href="#/login"
-            className="text-[#68E996]"
-          >
-            Login
-          </a>
-          <a
-            href="#/signup"
-            className="px-4 py-2 text-black rounded-lg bg-[#EDFAE1]"
-          >
-            Sign up
-          </a>
+          {login && (
+            <a
+              href="#/login"
+              className="text-[#68E996]"
+            >
+              Login
+            </a>
+          )}
+          {signup && (
+            <a
+              href="#/signup"
+              className="px-4 py-2 text-black rounded-lg bg-[#EDFAE1]"
+            >
+              Sign up
+            </a>
+          )}
         </div>
       </div>
     </nav>

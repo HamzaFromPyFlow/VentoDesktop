@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 import Pricing from './pages/pricing/Pricing';
 import Landing from './pages/landing/Landing';
+import Auth from './pages/auth/Auth';
 
 function App() {
   return (
@@ -13,6 +14,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/pricing" element={<Pricing />} />
+              <Route path="/login" element={<Auth />} />
+              <Route path="/signup" element={<Auth />} />
             </Routes>
           </main>
         </div>
