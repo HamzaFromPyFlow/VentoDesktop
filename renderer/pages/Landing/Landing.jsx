@@ -1,8 +1,9 @@
 import React from 'react';
-import Footer from '../components/Landing/Footer';
-import RecordCTA from '../components/Landing/RecordCTA';
-import DemoVideoPlayer from '../components/Landing/DemoVideoPlayer';
-import FaqAccordians from '../components/Landing/FaqAccordians';
+import Header from '../../components/Header';
+import Footer from '../../components/landing/Footer';
+import RecordCTA from '../../components/landing/RecordCTA';
+import DemoVideoPlayer from '../../components/landing/DemoVideoPlayer';
+import FaqAccordians from '../../components/landing/FaqAccordians';
 import styles from './Landing.module.css';
 
 function Home() {
@@ -47,49 +48,7 @@ function Home() {
         }}
       />
 
-      {/* Header */}
-      <nav className="relative z-10 mt-4">
-        <div className="max-w-content mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4 -ml-4">
-            <div className="flex items-start">
-              <img
-                src="/assets/green-logo.png"
-                alt="vento logo"
-                className="w-8 h-8"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-              <a 
-                href="/" 
-                className={`text-[24px] leading-[33px] text-[#413245] ${styles.logoText}`}
-              >
-                ento
-              </a>
-            </div>
-            <a
-              href="/pricing"
-              className="text-gray-700 hover:text-gray-900 no-underline ml-4 transition-colors"
-            >
-              Pricing
-            </a>
-          </div>
-          <div className="flex items-center gap-4 -mr-4">
-            <a
-              href="/login"
-              className="text-[#68E996]"
-            >
-              Login
-            </a>
-            <a
-              href="/signup"
-              className="px-4 py-2 text-black rounded-lg bg-[#EDFAE1]"
-            >
-              Sign up
-            </a>
-          </div>
-        </div>
-      </nav>
+      <Header startRecording={false}/>
 
       <div className="relative z-10 max-w-content mx-auto w-full px-6 py-8 md:py-16 flex flex-col items-center flex-wrap">
         {/* Hero Section */}
