@@ -13,25 +13,25 @@ function Home() {
       description: `With other screen recorders, you'll have to restart the entire recording or use some complicated post-production software to edit out the mistake.
 
       With Vento just pause, rewind a few seconds, and re-record over it!`,
-      image: '/assets/home/fumble.png',
+      image: '/assets/landing/fumble.png',
       alt: 'video editor for recording screen, audio, showing a face using Chromebook'
     },
     {
       title: 'Do multiple takes',
       description: `You can do many takes really quickly by jumping to the last rewind point and re-recording again and again. Need to get that feeling right for a pitch or a demo? Now you can do it without restarting the whole video from scratch.`,
-      image: '/assets/home/multiple-takes.png',
+      image: '/assets/landing/multiple-takes.png',
       alt: 'video navigation bar after recording screen and audio on Chromebook'
     },
     {
       title: 'Create chapter headings',
       description: `Make it easier for your viewers to quickly skip to points of interest in your recording!`,
-      image: '/assets/home/chapter-headings.png',
+      image: '/assets/landing/chapter-headings.png',
       alt: 'video editor showing chapter headings after recording screen using extension on Chromebook'
     },
     {
       title: 'Add author annotations',
       description: `Forgot to mention something? Go back afterwards and add an author annotation that viewers will have to acknowledge before continuing to watch the video recording!`,
-      image: '/assets/home/author-annotation.png',
+      image: '/assets/landing/author-annotation.png',
       alt: 'recorded face and audio with transcript using Chromebook'
     }
   ];
@@ -68,7 +68,7 @@ function Home() {
           </div>
           <img
             className="hidden md:block absolute top-[-100px] right-0 w-[50%] object-cover pointer-events-none"
-            src="/assets/hero-photo.svg"
+            src="/assets/landing/hero-photo.svg"
             alt="man sits in front of Chromebook or Macbook computer recording face and audio with screen using Chrome extension"
             onError={(e) => {
               e.target.style.display = 'none';

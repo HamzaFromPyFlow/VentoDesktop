@@ -4,6 +4,7 @@ import { MantineProvider } from '@mantine/core';
 import Pricing from './pages/pricing/Pricing';
 import Landing from './pages/landing/Landing';
 import Auth from './pages/auth/Auth';
+import RecordPage from './pages/record/Record';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/login" element={<Auth />} />
               <Route path="/signup" element={<Auth />} />
+              <Route path="/record" element={<RecordPage />} />
             </Routes>
           </main>
         </div>

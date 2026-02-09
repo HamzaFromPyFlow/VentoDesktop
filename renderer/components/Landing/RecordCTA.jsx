@@ -8,7 +8,7 @@ function RecordCTA() {
 
   return (
     <a
-      href="/record/new"
+      href="#/record"
       onClick={handleClick}
       className="inline-flex items-center gap-2 px-6 py-3 bg-[#68E997] text-black rounded-lg font-medium"
     >
