@@ -631,11 +631,11 @@ export default function InputSettings({ children, onResolutionClick }) {
       {recordingState !== 'recording-cam' && (
         <p className="mt-2 text-xs text-center text-gray-500">
           By clicking "Start Recording", you agree to our{' '}
-          <a href="#/policy?content=terms-of-service" className="text-[#68E996] hover:underline">
+          <a href="#/policy?content=terms-of-service" className="text-[#68E996]">
             Terms
           </a>{' '}
           and our{' '}
-          <a href="#/policy?content=privacy-policy" className="text-[#68E996] hover:underline">
+          <a href="#/policy?content=privacy-policy" className="text-[#68E996]">
             Privacy Policy
           </a>
         </p>
