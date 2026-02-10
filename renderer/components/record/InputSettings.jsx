@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Tabs } from '@mantine/core';
+import { Tabs, Menu, Tooltip } from '@mantine/core';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { useRecordStore } from '../../stores/recordStore';
 import { BiVideo, BiMicrophone } from 'react-icons/bi';
@@ -7,6 +7,8 @@ import { CgScreen } from 'react-icons/cg';
 import { BiSelection } from 'react-icons/bi';
 import { BiPlus } from 'react-icons/bi';
 import { MdOpenInFull } from 'react-icons/md';
+import { GiSettingsKnobs } from 'react-icons/gi';
+import { VscScreenFull } from 'react-icons/vsc';
 
 export default function InputSettings({ children, onResolutionClick }) {
   const { mode, setMode, selectedVideoInputId, selectedAudioInputId, cameraPosition, setCameraPosition, cameraSize, setCameraSize } = useSettingsStore(
@@ -39,6 +41,9 @@ export default function InputSettings({ children, onResolutionClick }) {
   const [cameraDenied, setCameraDenied] = useState(false);
   const [isHoveringCamera, setIsHoveringCamera] = useState(false);
   const [isHoveringCameraPreview, setIsHoveringCameraPreview] = useState(false);
+  const [toolTipOpened, setToolTipOpened] = useState(false);
+  const [menuOpened, setMenuOpened] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const streamRef = useRef(null); // Keep reference to current stream
 
   // Initialize camera position to bottom right of viewport if not set
@@ -386,13 +391,16 @@ export default function InputSettings({ children, onResolutionClick }) {
       )}
 
       {/* Preview area */}
-      <div ref={previewRef} className="mt-2 min-h-[400px] relative overflow-visible">
+      <div
+        ref={previewRef}
+        className="mt-2 min-h-[400px] border border-[#E5F8EA] rounded-md relative overflow-visible"
+        onMouseEnter={() => setIsHoveringCameraPreview(true)}
+        onMouseLeave={() => setIsHoveringCameraPreview(false)}
+      >
         {/* Camera preview - fills entire area in camera mode */}
         <div
           className="absolute inset-0 bg-gray-200 overflow-hidden"
           style={{ display: mode === 'camera' ? 'block' : 'none' }}
-          onMouseEnter={() => setIsHoveringCameraPreview(true)}
-          onMouseLeave={() => setIsHoveringCameraPreview(false)}
         >
           <video
             ref={cameraVideoRef}
@@ -464,13 +472,22 @@ export default function InputSettings({ children, onResolutionClick }) {
         {/* Controls OVERLAYED on preview - for all modes when not recording */}
         {!isCameraRecording && (
           <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col gap-2 z-10">
-            {/* Camera selection row - only show on hover in camera mode */}
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center bg-white/90 text-gray-600">
-                <BiVideo size={16} />
-              </div>
-              {(mode !== 'camera' || isHoveringCameraPreview) && (
-                <div className="flex-1 flex items-center justify-between  bg-white px-3 py-1.5 text-sm">
+            {/* Camera selection row
+                - In camera mode: shows text only on hover over the preview
+                - In screencam mode: always shows text (camera is used)
+                - In screen/selection modes: completely hidden (camera not used) */}
+            {(mode === 'camera' || mode === 'screencam') && (
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center bg-[#F7F7F7] text-gray-600 border border-gray-300 rounded-md">
+                  <BiVideo size={16} />
+                </div>
+                <div
+                  className="flex-1 flex items-center justify-between bg-white px-3 py-1.5 text-sm border border-gray-300 rounded-md transition-opacity duration-150"
+                  style={{
+                    opacity: mode !== 'camera' || isHoveringCameraPreview ? 1 : 0,
+                    pointerEvents: mode === 'camera' && !isHoveringCameraPreview ? 'none' : 'auto',
+                  }}
+                >
                   <span className="text-gray-700 flex-1 text-left">
                     {cameraDenied || selectedVideoInputId === 'none'
                       ? 'Camera Access Denied'
@@ -488,21 +505,25 @@ export default function InputSettings({ children, onResolutionClick }) {
                     </button>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Microphone selection row - only show on hover in camera mode */}
+            {/* Microphone selection row - only show full text when the camera area is hovered in camera mode (no layout shift) */}
             <div className="flex items-center gap-2 opacity-90">
-              <div className="flex h-8 w-8 items-center justify-center  bg-white/90 text-gray-600">
+              <div className="flex h-8 w-8 items-center justify-center bg-[#F7F7F7] text-gray-600 border border-gray-300 rounded-md">
                 <BiMicrophone size={16} />
               </div>
-              {(mode !== 'camera' || isHoveringCameraPreview) && (
-                <div className="flex-1  bg-white px-3 py-1.5 text-sm text-gray-700 text-left">
-                  {mode === 'camera'
-                    ? 'MacBook Pro Microphone (Built-in)'
-                    : 'Microphone selection (coming soon in desktop)'}
-                </div>
-              )}
+              <div
+                className="flex-1 bg-white px-3 py-1.5 text-sm text-gray-700 text-left border border-gray-300 rounded-md transition-opacity duration-150"
+                style={{
+                  opacity: mode !== 'camera' || isHoveringCameraPreview ? 1 : 0,
+                  pointerEvents: mode === 'camera' && !isHoveringCameraPreview ? 'none' : 'auto',
+                }}
+              >
+                {mode === 'camera'
+                  ? 'MacBook Pro Microphone (Built-in)'
+                  : 'Microphone selection (coming soon in desktop)'}
+              </div>
             </div>
 
             {/* Start Recording button */}
@@ -513,43 +534,112 @@ export default function InputSettings({ children, onResolutionClick }) {
 
       {/* Bottom controls row */}
       <div className="mt-3 flex items-center justify-between gap-4 text-xs md:text-sm">
-        <button
-          type="button"
-          onClick={onResolutionClick}
-          className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-gray-600 hover:bg-gray-100"
-        >
-          <span className="text-base">⚙️</span>
-        </button>
+        {/* Recording options tooltip + menu (desktop clone of web behavior, simplified) */}
+        <Tooltip label="Recording Options" opened={toolTipOpened}>
+          <div>
+            <Menu
+              shadow="md"
+              position="right"
+              radius="md"
+              opened={menuOpened}
+              onClose={() => setMenuOpened(false)}
+            >
+              <Menu.Target>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setMenuOpened(!menuOpened);
+                  }}
+                  onMouseEnter={() => setToolTipOpened(true)}
+                  onMouseLeave={() => setToolTipOpened(false)}
+                >
+                  <GiSettingsKnobs size={20} />
+                </button>
+              </Menu.Target>
 
+              <Menu.Dropdown className="min-w-[350px] text-xs">
+                <Menu.Item closeMenuOnClick={false}>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-medium text-gray-800 text-sm">Timer</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                          countdown === 0
+                            ? 'bg-white border-[#68E996] text-black'
+                            : 'bg-[#F4F4F4] border-transparent text-gray-700'
+                        }`}
+                        onClick={() => setCountdown(0)}
+                      >
+                        None
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                          countdown === 3
+                            ? 'bg-white border-[#68E996] text-black'
+                            : 'bg-[#F4F4F4] border-transparent text-gray-700'
+                        }`}
+                        onClick={() => setCountdown(3)}
+                      >
+                        3s
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                          countdown === 5
+                            ? 'bg-white border-[#68E996] text-black'
+                            : 'bg-[#F4F4F4] border-transparent text-gray-700'
+                        }`}
+                        onClick={() => setCountdown(5)}
+                      >
+                        5s
+                      </button>
+                    </div>
+                  </div>
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </div>
+        </Tooltip>
+
+        {/* Anonymous mode button */}
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-[#F8F8F8] px-4 py-2 text-gray-800 hover:bg-gray-100"
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-[#E0E0E0] px-4 py-2 text-black shadow-[0_4px_12px_rgba(0,0,0,0.12)]"
         >
           <span>Anonymous Mode</span>
-          <span className="text-xs rounded-full border border-gray-300 px-1.5 py-0.5 text-gray-500">
+          <span className="text-xs rounded-full border border-black px-1.5 py-0.5 text-black">
             ?
           </span>
         </button>
 
+        {/* Resolution button with icon */}
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700 hover:bg-gray-50"
+          onClick={onResolutionClick}
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-[#F4F4F4] px-3 py-2 text-black shadow-[0_4px_12px_rgba(0,0,0,0.12)]"
         >
+          {/* <VscScreenFull size={16} /> */}
           <span>720p</span>
         </button>
       </div>
 
-      {/* Terms text */}
-      <p className="mt-2 text-xs text-center text-gray-500">
-        By clicking "Start Recording", you agree to our{' '}
-        <a href="#/policy?content=terms-of-service" className="text-[#68E996] hover:underline">
-          Terms
-        </a>{' '}
-        and our{' '}
-        <a href="#/policy?content=privacy-policy" className="text-[#68E996] hover:underline">
-          Privacy Policy
-        </a>
-      </p>
+      {/* Terms text – show on the same screen when not recording */}
+      {recordingState !== 'recording-cam' && (
+        <p className="mt-2 text-xs text-center text-gray-500">
+          By clicking "Start Recording", you agree to our{' '}
+          <a href="#/policy?content=terms-of-service" className="text-[#68E996] hover:underline">
+            Terms
+          </a>{' '}
+          and our{' '}
+          <a href="#/policy?content=privacy-policy" className="text-[#68E996] hover:underline">
+            Privacy Policy
+          </a>
+        </p>
+      )}
     </div>
   );
 }
