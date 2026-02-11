@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader, PasswordInput, TextInput } from '@mantine/core';
-import Header from '../../components/Header';
-import styles from './Auth.module.css';
+import Header from '../../components/common/Header';
+import styles from '../../styles/modules/Auth.module.scss';
 
 export default function AuthPage() {
   const navigate = useNavigate();

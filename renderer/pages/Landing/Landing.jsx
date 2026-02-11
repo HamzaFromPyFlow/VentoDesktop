@@ -1,10 +1,10 @@
 import React from 'react';
-import Header from '../../components/Header';
-import Footer from '../../components/landing/Footer';
+import Header from '../../components/common/Header';
+import Footer from '../../components/common/Footer';
 import RecordCTA from '../../components/landing/RecordCTA';
 import DemoVideoPlayer from '../../components/landing/DemoVideoPlayer';
 import FaqAccordians from '../../components/landing/FaqAccordians';
-import styles from './Landing.module.css';
+import styles from '../../styles/modules/Landing.module.scss';
 
 function Home() {
   const features = [

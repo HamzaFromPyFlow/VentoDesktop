@@ -12,16 +12,14 @@ function Footer() {
             <p className="text-[#9A989C] mb-2">© 2023 Vento. All rights reserved.</p>
             <div className="flex gap-4">
               <a
-                href="/policy?content=privacy-policy"
-                target="_blank"
-                className="text-[#9A989C] underline underline-offset-2 hover:text-white"
+                href="#/policy?content=privacy-policy"
+                className="text-[#9A989C] underline underline-offset-2"
               >
                 Privacy Policy
               </a>
               <a
-                href="/policy?content=terms-of-service"
-                target="_blank"
-                className="text-[#9A989C] underline underline-offset-2 hover:text-white"
+                href="#/policy?content=terms-of-service"
+                className="text-[#9A989C] underline underline-offset-2"
               >
                 Terms of Service
               </a>

@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './Header.module.css';
+import styles from '../../styles/modules/Header.module.scss';
 
 function Header({ pricing = true, startRecording = true, login = true, signup = true }) {
   return (

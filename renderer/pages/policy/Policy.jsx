@@ -1,15 +1,16 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Header from '../../components/Header';
+import Header from '../../components/common/Header';
+import Footer from '../../components/common/Footer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import styles from '../../styles/modules/Policy.module.scss';
-import termsOfService from './terms-of-service.md?raw';
-import privacyPolicy from './privacy-policy.md?raw';
-import subprocessorsPolicy from './subprocessors.md?raw';
-import copyrightPolicy from './copyright-policy.md?raw';
-import cookiePolicy from './cookie-policy.md?raw';
-import dataProcessingAddendum from './data-processing-addendum.md?raw';
+import termsOfService from './PolicyFiles/terms-of-service.md?raw';
+import privacyPolicy from './PolicyFiles/privacy-policy.md?raw';
+import subprocessorsPolicy from './PolicyFiles/subprocessors.md?raw';
+import copyrightPolicy from './PolicyFiles/copyright-policy.md?raw';
+import cookiePolicy from './PolicyFiles/cookie-policy.md?raw';
+import dataProcessingAddendum from './PolicyFiles/data-processing-addendum.md?raw';
 
 const data = [
     {
@@ -108,6 +109,7 @@ function PolicyPage() {
                     </div>
                 </div>
             </div>
+            <Footer />
         </main>
     );
 }

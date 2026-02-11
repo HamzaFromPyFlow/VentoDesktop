@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import Header from '../../components/Header';
+import Header from '../../components/common/Header';
 import { BsStars } from 'react-icons/bs';
 import { IoCloseSharp } from 'react-icons/io5';
 import { MdDone } from 'react-icons/md';
 import { TiTick } from 'react-icons/ti';
-import styles from './Pricing.module.css';
+import styles from '../../styles/modules/Pricing.module.scss';
 
 const MONTHLY_PRICE = 8;
 
@@ -128,7 +128,7 @@ function Pricing() {
             <div className={styles.tableColumn}>
               <img
                 className={styles.image}
-                src="/assets/yellow-logo.png"
+                src="/assets/green-logo.png"
                 alt="vento logo"
               />
               <h4 className={`${styles.title} ${styles.ubuntuTitle}`}>Vento Lifetime</h4>

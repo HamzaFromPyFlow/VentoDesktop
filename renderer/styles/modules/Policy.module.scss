@@ -4,7 +4,6 @@
 .main {
   min-height: 100vh;
   background: #ffffff;
-  padding-bottom: 2.5rem;
   background-image: url('../../assets/background-curves.svg');
   background-repeat: no-repeat;
   background-position: top center;
@@ -20,6 +19,7 @@
   .mainDiv {
     max-width: 1200px;
     margin: auto;
+    padding-bottom: 3rem;
     display: flex;
     gap: 3rem;
   }
