@@ -1,15 +1,19 @@
 import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
+// TODO: Install @mantine/notifications package
+// import { Notifications } from '@mantine/notifications';
 import Pricing from './pages/pricing/Pricing';
 import Landing from './pages/landing/Landing';
 import Auth from './pages/auth/Auth';
 import RecordPage from './pages/record/Record';
 import PolicyPage from './pages/policy/Policy';
+import RecordingsPage from './pages/recordings/Recordings';
 
 function App() {
   return (
     <MantineProvider>
+      {/* <Notifications /> */}
       <HashRouter>
         <div className="flex flex-col h-screen bg-white overflow-hidden">
           <main className="flex-1 overflow-y-auto">
@@ -20,6 +24,7 @@ function App() {
               <Route path="/signup" element={<Auth />} />
               <Route path="/record" element={<RecordPage />} />
               <Route path="/policy" element={<PolicyPage />} />
+              <Route path="/recordings" element={<RecordingsPage />} />
             </Routes>
           </main>
         </div>

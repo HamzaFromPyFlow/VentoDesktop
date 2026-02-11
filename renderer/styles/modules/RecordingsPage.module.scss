@@ -1,0 +1,429 @@
+@use "../mixins" as *;
+@use "../variables" as *;
+
+.main {
+  max-width: $max-width;
+  padding: 0 $padding-x;
+  margin: 0 auto;
+
+  .heading {
+    @include flex;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding-block: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 3px solid $neutral-700;
+
+    @include sm {
+      .heading {
+        margin: 1rem 0;
+      }
+    }
+
+    .limitContainer {
+      @include flex;
+      align-items: center;
+      gap: 1rem;
+
+      .progressContainer {
+        @include flex(column);
+        gap: 0.2rem;
+        width: 8rem;
+
+        @include sm {
+          width: 12.5rem;
+        }
+      }
+
+      .pricingPill {
+        @include btn-base;
+        font-size: 0.75rem;
+        background-color: $orange-500;
+
+        @include sm {
+          font-size: 1rem;
+        }
+
+        @include flex-center;
+        gap: 0.25rem;
+      }
+      .diamondIcon {
+        font-size: 15px;
+        @include sm {
+          font-size: 20px;
+        }
+      }
+    }
+
+    .recordingPageBtnsContainer {
+      display: flex;
+      flex-direction: row;
+      margin-left: auto;
+      gap: 1rem;
+    }
+
+    .newFolderBtn {
+      @include btn-base(small);
+      background-color: $neutral-600;
+
+      padding-block: 0.65rem;
+    }
+
+    .uploadVideoBtn {
+      @include btn-base(small);
+      background-color: #67e997;
+      padding: 0.5rem 1rem;
+    }
+
+    .inviteBtn {
+      @include btn-base(small);
+      background-color: $primary-400;
+      color: white;
+      padding: 0.5rem 1rem;
+    }
+
+    .activeBtn {
+      text-decoration: underline;
+      text-decoration-color: $primary-400;
+      text-decoration-thickness: 4px;
+      text-underline-offset: 5px;
+    }
+    
+    .headingLink {
+      font-family: var(--font-heading);
+      border-bottom: 3px solid $primary-400;
+    }
+  }
+
+  .subHeading {
+    font-family: var(--font-base);
+    font-weight: 500;
+    font-size: 1.4rem;
+  }
+
+
+  .recordingsContainer,
+  .foldersContainer {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    
+      // Define default grid layout
+      grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+
+    .recordingItem,
+    .folderItem {
+      width: 100%;
+      border-radius: 10px;
+      box-shadow: 0px 2px 5px 3px rgba($color: #000000, $alpha: 0.03);
+
+    }
+
+    .title {
+      font-weight: 500;
+    }
+
+    .recordingItem {
+      @include flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      &.multiSelect:hover {
+        outline: 2px solid $primary-400;
+      }
+      &.multiSelect:hover .thumbnail {
+        filter: brightness(0.70); /* Applies on hover */
+      }    
+
+      /* Hide checkbox by default, show it on hover */
+      .checkbox {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        width: 18px;
+        height: 18px;
+        opacity: 0;
+        appearance: none;
+        outline: 2px solid white;
+        background: transparent;
+        border-radius: 2px;
+        transition: opacity 0.2s ease;  
+        
+        &:checked {
+          opacity: 1;
+          background-color: white;
+          color: black;
+        }
+
+        &:checked::after {
+          content: '';
+          display: block;
+          width: 8px;
+          height: 12px;
+          border: solid black; /* Tick color */
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+          margin: auto;
+          position: relative;
+          top: 2px;
+        }
+
+        &.checkboxMode {
+          opacity: 1; /* Ensure checkboxes are visible when checkbox mode is active */
+        }
+      }
+    
+      &:hover .checkbox {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .picture {
+        position: relative;
+        display: inline-block;
+        min-height: 160px;
+
+        &.selected .thumbnail {
+          filter: brightness(0.70);
+        }
+
+        &.checkboxMode .checkbox {
+          opacity: 1 !important;
+        }
+
+        &.checkboxMode .thumbnail {
+          filter: brightness(0.70);
+        }
+      }
+
+      .thumbnail {
+        width: 100%;
+        height: 10rem;
+        object-fit: cover;
+      }
+
+      .timestamp {
+        position: absolute;
+        bottom: 10px;
+        right: 0px; 
+        background-color: rgba(0, 0, 0, 0.4);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        z-index: 99;
+      }
+
+      .data {
+        > div {
+          @include flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        @include flex(column);
+        gap: 0.5rem;
+        padding: 0.7rem;
+        padding-bottom: 1rem;
+
+        .title {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          font-size: medium;
+          color: black;
+          flex: 1;
+        }
+
+        button {
+          flex-shrink: 0;
+        }
+
+        .timeStr {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          flex: 1;
+          font-size: small;
+          color: grey;
+        }
+      }
+
+      .menuBtn {
+        width: 2rem;
+        height: 2rem;
+        padding: 0px;
+        border-radius: 100%;
+        fill: black;
+        cursor: pointer;
+
+        &:hover {
+          background-color: $neutral-800;
+        }
+
+        .profileImg {
+          width: 100%;
+          border-radius: 50%;
+          border: #161319 solid;
+          object-fit: cover;
+          background-color: #161319;
+        }
+
+        > svg {
+          width: 60%;
+          height: 60%;
+        }
+      }
+
+      .viewCount {
+        @include flex-center;
+        gap: 0.25rem;
+      }
+    }
+
+    .folderItem {
+      padding: 0.75rem 1rem;
+      @include flex;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+
+      > svg {
+        flex-shrink: 0;
+      }
+
+      .data {
+        min-width: 0px;
+        p {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+        }
+
+        .title {
+          height: 28px;
+        }
+      }
+
+      .iconContainer {
+        position: relative;
+        display: inline-block;
+      }
+      
+      .folderIcon {
+        color: #f4a261;
+      }
+      
+      .archiveIcon {
+        position: absolute;
+        bottom: 18px;
+        right: 12px;
+        background: white;
+        border-radius: 50%;
+        padding: 2px;
+        color: #6d6875;
+      }
+    }
+
+    .renameInput :global(.mantine-TextInput-input) {
+      height: 28px;
+      font-weight: 500;
+      font-size: 1rem;
+      line-height: 1.4;
+      padding-block: 0;
+      margin-top: -0.13rem;
+    }
+  }
+
+  .foldersContainer {
+    margin-bottom: 2rem;
+  }
+  
+  .actionBarContainer {
+    position: fixed;
+    bottom: 20px;
+    opacity: 1;
+    z-index: 99;
+    margin-left: 30px;
+  }
+
+  .actionBar {
+    opacity: 1; 
+    height: 50px;
+    background-color: $primary-400;
+    display: flex;
+    justify-content: space-between;
+    align-items: center ;
+    border-radius: 10px;
+    z-index: 99;
+    padding-left:12px;
+
+    p {
+      color: white;
+    }
+    button{
+      color: white;
+    }
+
+    .actionBarBtns {
+      @include btn-base;
+      background-color: $primary-400;
+      cursor: pointer;
+      display: flex;
+      gap: 1rem;
+      font-size: 1rem;
+    }
+    
+    @media (max-width: 1000px) {
+      height: 70px;
+      @include btn-base(small);
+    }
+    
+    @media (max-width: 800px) {
+      flex-direction: column;
+      .actionBarBtns {
+        @include btn-base(small);
+        font-size: small;
+      }
+    }
+  }
+
+  .loadingContainer {
+    @include flex-center;
+    padding: 4rem 0;
+  }
+
+  .recordingsGrid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  }
+
+  .recordingCard {
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0px 2px 5px 3px rgba($color: #000000, $alpha: 0.03);
+    background: white;
+  }
+}
+
+.noRecordingsWatermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000000;
+  font-size: 2rem;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  text-align: center;
+  z-index: 2;
+}

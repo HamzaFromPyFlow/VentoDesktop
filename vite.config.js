@@ -15,7 +15,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './renderer')
+      '@': path.resolve(__dirname, './renderer'),
+      '@schema': path.resolve(__dirname, './renderer/schema')
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ['legacy-js-api']
+      }
     }
   }
 });
