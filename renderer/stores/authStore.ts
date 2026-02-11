@@ -9,6 +9,7 @@ type AuthState = {
   setVentoUser: (user: any | null) => void;
   setRecordingNo: (count: number) => void;
   setLoadingUser: (state: LoadingState) => void;
+  signOut: () => void;
 };
 
 /**
@@ -23,5 +24,12 @@ export const useAuth = create<AuthState>((set) => ({
   setVentoUser: (ventoUser) => set({ ventoUser }),
   setRecordingNo: (recordingNo) => set({ recordingNo }),
   setLoadingUser: (loadingUser) => set({ loadingUser }),
+  signOut: () => {
+    localStorage.removeItem('vento-token');
+    set({ ventoUser: null, recordingNo: 0 });
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+  },
 }));
 

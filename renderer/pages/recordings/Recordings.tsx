@@ -128,7 +128,7 @@ export default function RecordingsPage() {
           results[0].status === "fulfilled" ? results[0].value.data : [];
 
         const total =
-          results[0].status === "fulfilled" ? results[0].value.pagination.count : 0;
+          results[0].status === "fulfilled" ? (results[0].value.pagination.count ?? 0) : 0;
 
         const folders =
           results[1].status === "fulfilled" ? results[1].value : [];
@@ -137,7 +137,7 @@ export default function RecordingsPage() {
           results[2].status === "fulfilled" ? results[2].value.data : [];
 
         const totalArchivedRecordings =
-          results[2].status === "fulfilled" ? results[2].value.pagination.count : 0;
+          results[2].status === "fulfilled" ? (results[2].value.pagination.count ?? 0) : 0;
 
         // Convert recordings to modal items
         const convertedRecordings = recordings.map((recording: any) =>

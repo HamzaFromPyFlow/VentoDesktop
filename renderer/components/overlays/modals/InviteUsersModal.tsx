@@ -18,7 +18,6 @@ export default function InviteUsersModal({
       onClose={onClose}
       centered
       size="auto"
-      withFocusReturn={false}
       withCloseButton={false}
       classNames={{
         root: `vento-modal invite-users`,

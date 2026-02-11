@@ -1,68 +1,25 @@
 /**
- * Lightweight stub of the vento webAPI client for VentoDesktop.
- * 
- * The real web app uses an OpenAPI-generated client (@schema/WebAPI).
- * Here we only define the methods we need so that imports compile.
- * Replace implementations with real HTTP calls when backend is wired up.
+ * WebAPI client for VentoDesktop.
+ * Uses the OpenAPI-generated client from @schema/WebAPI.
  */
 
-type AnyPromiseFn = (...args: any[]) => Promise<any>;
+import { WebAPI as WebAPIClass } from '@schema/index';
 
-type RecordingAPI = {
-  recordingGetListofRecordingsByUser: AnyPromiseFn;
-  recordingDeleteRecording: AnyPromiseFn;
-  recordingDeleteMultipleRecordings: AnyPromiseFn;
-  recordingAddToFolder: AnyPromiseFn;
-  recordingSetPassword: AnyPromiseFn;
-  recordingUpdateRecording: AnyPromiseFn;
-  recordingUpdateTitle: AnyPromiseFn;
-  recordingPatchRecording: AnyPromiseFn;
-};
+// Initialize WebAPI with configuration
+// BASE URL will be set from environment variable or default
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-type FolderAPI = {
-  folderGetUserFolders: AnyPromiseFn;
-  folderCreateFolder: AnyPromiseFn;
-  folderUpdateFolder: AnyPromiseFn;
-  folderDeleteFolder: AnyPromiseFn;
-};
-
-type SearchAPI = {
-  searchSearch: AnyPromiseFn;
-};
-
-type WebAPI = {
-  recording: RecordingAPI;
-  folder: FolderAPI;
-  search: SearchAPI;
-};
-
-function notImplemented(name: string): AnyPromiseFn {
-  return async () => {
-    throw new Error(`webAPI.${name} is not implemented in VentoDesktop yet`);
-  };
-}
-
-const webAPI: WebAPI = {
-  recording: {
-    recordingGetListofRecordingsByUser: notImplemented('recording.recordingGetListofRecordingsByUser'),
-    recordingDeleteRecording: notImplemented('recording.recordingDeleteRecording'),
-    recordingDeleteMultipleRecordings: notImplemented('recording.recordingDeleteMultipleRecordings'),
-    recordingAddToFolder: notImplemented('recording.recordingAddToFolder'),
-    recordingSetPassword: notImplemented('recording.recordingSetPassword'),
-    recordingUpdateRecording: notImplemented('recording.recordingUpdateRecording'),
-    recordingUpdateTitle: notImplemented('recording.recordingUpdateTitle'),
-    recordingPatchRecording: notImplemented('recording.recordingPatchRecording'),
+const webAPI = new WebAPIClass({
+  BASE: BASE_URL,
+  VERSION: '1.0.0',
+  WITH_CREDENTIALS: true,
+  CREDENTIALS: 'include',
+  TOKEN: () => {
+    // Get token from localStorage for desktop
+    const token = localStorage.getItem('vento-token');
+    return Promise.resolve(token || '');
   },
-  folder: {
-    folderGetUserFolders: notImplemented('folder.folderGetUserFolders'),
-    folderCreateFolder: notImplemented('folder.folderCreateFolder'),
-    folderUpdateFolder: notImplemented('folder.folderUpdateFolder'),
-    folderDeleteFolder: notImplemented('folder.folderDeleteFolder'),
-  },
-  search: {
-    searchSearch: notImplemented('search.searchSearch'),
-  },
-};
+});
 
 export default webAPI;
 

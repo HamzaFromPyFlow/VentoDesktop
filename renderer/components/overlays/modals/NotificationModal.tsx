@@ -21,8 +21,6 @@ export default function NotificationModal({
       title={modalTitle}
       centered
       size="auto"
-      overlayBlur={3}
-      overlayOpacity={0.55}
       classNames={{
         root: 'vento-modal',
       }}

@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { generateUrl } from '../../lib/utils';
-import styles from '../../styles/modules/Header.module.scss';
-// TODO: Import these components when they are created
-// import ProfileDropdownBtn from '../dropdowns/ProfileDropdownBtn';
-// import RecordingsSearchBar from '../recordings-page/RecordingsSearchBar';
-import NotificationModal from '../overlays/modals/NotificationModal';
+import { generateUrl, isBrowser, isSupportedBrowser } from '../../lib/helper-pure';
+import { useRedirectAuthUrl, useSignUpRedirectAuthUrl } from '../../lib/hooks';
+import { logClientEvent } from '../../lib/misc';
+import { isUserFreePlan } from '../../lib/payment-helper';
+import { useAuth } from '../../stores/authStore';
+import ProfileDropdownBtn from '../dropdowns/ProfileDropdownBtn';
 import RecordingsSearchBar from '../recordings-page/RecordingsSearchBar';
-// TODO: Import auth hooks when available
-// import { useAuth } from '../../stores/authStore';
-// import { isUserFreePlan } from '../../lib/payment-helper';
-// import { logClientEvent } from '../../lib/misc';
+import NotificationModal from '../overlays/modals/NotificationModal';
+import styles from '../../styles/modules/Header.module.scss';
 
 type HeaderProps = {
   hideSignInButton?: boolean;
@@ -19,48 +17,13 @@ type HeaderProps = {
   leftSlot?: React.ReactNode;
 };
 
-// TODO: Implement these helper functions
-const isBrowser = () => typeof window !== 'undefined';
-const isSupportedBrowser = () => {
-  if (!isBrowser()) return false;
-  const userAgent = navigator.userAgent.toLowerCase();
-  return userAgent.includes('chrome') || userAgent.includes('edge') || userAgent.includes('brave');
-};
-
-// TODO: Implement auth redirect hooks
-const useRedirectAuthUrl = () => {
-  // TODO: Get from auth store or context
-  return '/login';
-};
-
-const useSignUpRedirectAuthUrl = () => {
-  // TODO: Get from auth store or context
-  return '/signup';
-};
-
-// TODO: Implement logClientEvent
-const logClientEvent = (event: string) => {
-  console.log('Event:', event);
-  // TODO: Implement analytics tracking
-};
-
-// TODO: Implement isUserFreePlan
-const isUserFreePlan = (user: any) => {
-  // TODO: Check user plan
-  return false;
-};
-
 export default function Header({
   hideSignInButton,
   hideNewRecordingButton,
   showPricing,
   leftSlot,
 }: HeaderProps) {
-  // TODO: Get from auth store
-  // const { ventoUser } = useAuth();
-  // TODO: Get from auth store
-  // const { ventoUser } = useAuth();
-  const ventoUser: any = null;
+  const { ventoUser } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const redirectUrl = useRedirectAuthUrl();
@@ -131,7 +94,7 @@ export default function Header({
             </a>
           )}
         </div>
-        {(pathname === '/recordings' || pathname === '#/recordings') && (
+        {pathname === '/recordings' && (
           <div className={styles.midContainer}>
             <RecordingsSearchBar />
           </div>
@@ -171,9 +134,7 @@ export default function Header({
                   </a>
                 </div>
               ) : (
-                // TODO: Uncomment when ProfileDropdownBtn is created
-                // <ProfileDropdownBtn />
-                <div>Profile</div>
+                <ProfileDropdownBtn />
               )}
             </>
           )}

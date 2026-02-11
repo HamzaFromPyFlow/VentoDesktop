@@ -2,6 +2,9 @@
 /* tslint:disable */
 /* eslint-disable */
 
+import type { FolderModel } from './FolderModel';
+import type { UserModel } from './UserModel';
+
 export type RecordingModel = {
     id: string;
     title: string;
@@ -22,13 +25,14 @@ export type RecordingModel = {
     metadata: any;
     transcription: any;
     editMetadata: any;
+    user: UserModel | null;
     userId: string | null;
     createdByFingerPrint: string | null;
     createdByIpAddress: string | null;
     createdByMetadata: any;
     createdAt: string;
     updatedAt: string;
-    folders?: Array<any>;
+    folders: Array<FolderModel>;
 };
 
 export namespace RecordingModel {
@@ -52,5 +56,6 @@ export namespace RecordingModel {
         COLDLINE = 'COLDLINE',
         ARCHIVE = 'ARCHIVE',
     }
+
 
 }

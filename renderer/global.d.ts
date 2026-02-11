@@ -28,3 +28,12 @@ declare module '*.sass' {
   export default content;
 }
 
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL?: string;
+  // Allow any other VITE_ env vars without strict typing for now
+  readonly [key: string]: string | undefined;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

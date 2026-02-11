@@ -76,3 +76,20 @@ export function useNotificationOnce() {
   return showNotificationOnce;
 }
 
+/**
+ * Get the Auth url with redirect_to query param.
+ * Desktop version - uses current location pathname
+ */
+export function useRedirectAuthUrl() {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  return `/auth/login?redirect_to=${pathname}`;
+}
+
+/**
+ * Get the Sign Up Auth url with redirect_to query param.
+ * Desktop version - uses current location pathname
+ */
+export function useSignUpRedirectAuthUrl() {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  return `/auth?redirect_to=${pathname}`;
+}
