@@ -31,7 +31,7 @@ export default function ReprocessOldVideoModal({
         videoUrl: videoUrl.publicUrl,
         audioUrl: audioUrl.publicUrl,
       })
-      navigate(generateUrl(`/view/${recordingId}/?re-processed=true`))
+      navigate(`/view/${recordingId}?re-processed=true`)
     } else {
       // Show error notification - simplified for desktop
       console.error('Re-processing failed. Please contact chat support for assistance.');

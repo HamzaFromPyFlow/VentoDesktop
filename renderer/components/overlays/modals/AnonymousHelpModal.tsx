@@ -1,4 +1,5 @@
 import { Modal } from "@mantine/core";
+import { Link } from "react-router-dom";
 
 type AnonymousHelpModalProps = {
     opened: boolean;
@@ -30,7 +31,7 @@ export default function AnonymousHelpModal({
             </p>
             <br/>
             <span>
-              Already a Vento customer? <a href="/auth/login" style={{ color: "#67E997" }}>&nbsp;Login</a>
+              Already a Vento customer? <Link to="/login" style={{ color: "#67E997" }}>&nbsp;Login</Link>
             </span>
     
             <div className="cta-container" style={{ width: "10vw" }}>

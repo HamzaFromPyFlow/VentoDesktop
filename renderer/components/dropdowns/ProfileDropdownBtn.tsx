@@ -1,12 +1,12 @@
 import { useState, useReducer } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Menu } from '@mantine/core';
 import { BsRecordCircle } from 'react-icons/bs';
 import { FaUserAlt } from 'react-icons/fa';
 import { IoExitOutline, IoSettingsOutline } from 'react-icons/io5';
 import { IoDiamondOutline } from 'react-icons/io5';
 import { MdAttachMoney } from 'react-icons/md';
-import { generateUrl, stripeLinkId } from '../../lib/helper-pure';
+import { stripeLinkId } from '../../lib/helper-pure';
 import { isLtd, isUserActiveTeamMember, isUserFreePlan, isUserTeamAdmin } from '../../lib/payment-helper';
 import { useAuth } from '../../stores/authStore';
 import AdminBillingModal from '../overlays/modals/AdminBillingModal';
@@ -19,7 +19,6 @@ type ModalStates = {
 
 export default function ProfileDropdownBtn() {
   const { ventoUser, signOut } = useAuth();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [upgradeToPremiumModalOpen, setUpgradeToPremiumModalOpen] = useState(false);
 
@@ -78,16 +77,18 @@ export default function ProfileDropdownBtn() {
         <Menu.Dropdown>
           <Menu.Label>{(ventoUser as any)?.displayName || (ventoUser as any)?.name}</Menu.Label>
 
-          <a href={generateUrl("/recordings", searchParams)}>
-            <Menu.Item icon={<BsRecordCircle size={14} />}>
-              View Recordings
-            </Menu.Item>
-          </a>
-          <a href={generateUrl("/profile")}>
-            <Menu.Item icon={<IoSettingsOutline size={14} />}>
-              Account and settings
-            </Menu.Item>
-          </a>
+          <Menu.Item 
+            icon={<BsRecordCircle size={14} />}
+            onClick={() => navigate('/recordings')}
+          >
+            View Recordings
+          </Menu.Item>
+          <Menu.Item 
+            icon={<IoSettingsOutline size={14} />}
+            onClick={() => navigate('/profile')}
+          >
+            Account and settings
+          </Menu.Item>
           {!isUserFreePlan(ventoUser) && !isLtd(ventoUser) && (!isUserActiveTeamMember(ventoUser) || isUserTeamAdmin(ventoUser)) && (
             <Menu.Item
               icon={<MdAttachMoney size={14} />}

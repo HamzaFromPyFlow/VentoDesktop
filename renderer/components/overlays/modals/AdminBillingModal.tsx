@@ -1,5 +1,5 @@
 import { Modal } from '@mantine/core';
-import { generateUrl } from '../../../lib/helper-pure';
+import { useNavigate } from 'react-router-dom';
 import styles from '../../../styles/modules/AdminBillingModal.module.scss';
 
 type AdminBillingModalProps = {
@@ -13,6 +13,8 @@ export default function AdminBillingModal({
   onClose,
   billingAction,
 }: AdminBillingModalProps) {
+  const navigate = useNavigate();
+  
   return (
     <Modal
       opened={opened}
@@ -30,7 +32,10 @@ export default function AdminBillingModal({
           select &quot;Take me to billing&quot;.
         </p>
         <div className={styles.adminBillingModalActions}>
-          <button onClick={() => window.location.href = generateUrl("/profile?tab=team")}>
+          <button onClick={() => {
+            onClose();
+            navigate('/profile?tab=team');
+          }}>
             Take me to my Team
           </button>
           <button

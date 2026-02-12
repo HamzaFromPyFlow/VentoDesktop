@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { generateUrl, isBrowser, isSupportedBrowser } from '../../lib/helper-pure';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { isBrowser, isSupportedBrowser } from '../../lib/helper-pure';
 import { useRedirectAuthUrl, useSignUpRedirectAuthUrl } from '../../lib/hooks';
 import { logClientEvent } from '../../lib/misc';
 import { isUserFreePlan } from '../../lib/payment-helper';
@@ -24,14 +24,14 @@ export default function Header({
   leftSlot,
 }: HeaderProps) {
   const { ventoUser } = useAuth();
-  const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const redirectUrl = useRedirectAuthUrl();
   const signUpRedirectUrl = useSignUpRedirectAuthUrl();
   const homeUrl = ventoUser ? '/recordings' : '/';
   const canRecord = !isBrowser() || isSupportedBrowser();
-  // For HashRouter, pathname includes the hash
-  const pathname = location.pathname || location.hash.replace('#', '');
+  // For HashRouter, pathname is in location.pathname (HashRouter handles hash internally)
+  const pathname = location.pathname;
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Load Crisp chat widget
@@ -81,17 +81,17 @@ export default function Header({
             alt="vento logo"
             width={32}
           />
-          <a href={generateUrl(homeUrl, searchParams)} className={styles.logo}>
+          <Link to={homeUrl} className={styles.logo}>
             ento
-          </a>
+          </Link>
           {leftSlot}
           {showPricing && isUserFreePlan(ventoUser) && (
-            <a
-              href={generateUrl('/pricing', searchParams)}
+            <Link
+              to="/pricing"
               className={styles.pricing}
             >
               Pricing
-            </a>
+            </Link>
           )}
         </div>
         {pathname == '/recordings' && (
@@ -107,7 +107,7 @@ export default function Header({
                 if (!canRecord) {
                   return setIsModalOpen(true);
                 }
-                window.location.href = generateUrl('/record/new', searchParams);
+                navigate('/record');
               }}
             >
               Start Recording
@@ -118,20 +118,20 @@ export default function Header({
             <>
               {!ventoUser ? (
                 <div className={styles.authBtn}>
-                  <a
-                    href={generateUrl(redirectUrl, searchParams)}
+                  <Link
+                    to={redirectUrl}
                     className={styles.logIn}
                     onClick={() => logClientEvent('click.header.login')}
                   >
                     Login
-                  </a>
-                  <a
-                    href={generateUrl(signUpRedirectUrl, searchParams)}
+                  </Link>
+                  <Link
+                    to={signUpRedirectUrl}
                     className={styles.signUp}
                     onClick={() => logClientEvent('click.header.signup')}
                   >
                     Sign up
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <ProfileDropdownBtn />

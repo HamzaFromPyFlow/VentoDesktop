@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const isBrowser = () => typeof window !== 'undefined';
 
@@ -78,18 +79,20 @@ export function useNotificationOnce() {
 
 /**
  * Get the Auth url with redirect_to query param.
- * Desktop version - uses current location pathname
+ * Desktop version - uses React Router's location (HashRouter handles hash internally)
  */
 export function useRedirectAuthUrl() {
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  return `/auth/login?redirect_to=${pathname}`;
+  const location = useLocation();
+  const pathname = location.pathname || '/';
+  return `/login?redirect_to=${encodeURIComponent(pathname)}`;
 }
 
 /**
  * Get the Sign Up Auth url with redirect_to query param.
- * Desktop version - uses current location pathname
+ * Desktop version - uses React Router's location (HashRouter handles hash internally)
  */
 export function useSignUpRedirectAuthUrl() {
-  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
-  return `/auth?redirect_to=${pathname}`;
+  const location = useLocation();
+  const pathname = location.pathname || '/';
+  return `/signup?redirect_to=${encodeURIComponent(pathname)}`;
 }

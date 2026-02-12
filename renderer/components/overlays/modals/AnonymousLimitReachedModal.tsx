@@ -1,4 +1,5 @@
 import { Modal } from "@mantine/core";
+import { Link } from "react-router-dom";
 
 type AnonymousLimitReachedModalProps = {
   opened: boolean;
@@ -23,7 +24,7 @@ export default function AnonymousLimitReachedModal({
         root: "vento-modal",
       }}
     >
-      <p>Thanks for trying out Vento! To record more, <a href="/auth" style={{ color: "#67E997" }}>&nbsp;Signup</a> to get 9 additional recordings!</p>
+      <p>Thanks for trying out Vento! To record more, <Link to="/signup" style={{ color: "#67E997" }}>&nbsp;Signup</Link> to get 9 additional recordings!</p>
       <div className="cta-container">
         <a onClick={onConfirm} className="confirm-btn">
           Signup

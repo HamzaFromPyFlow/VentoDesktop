@@ -1,11 +1,11 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Skeleton } from '@mantine/core';
 import { BsThreeDots } from 'react-icons/bs';
 import { GrFormView } from 'react-icons/gr';
 import { MdOutlineArchive } from 'react-icons/md';
 import RecordingItemDropdown from '../dropdowns/RecordingItemDropdown';
-import { generateUrl, formatVideoDurationMinutes } from '../../lib/utils';
+import { formatVideoDurationMinutes } from '../../lib/utils';
 import styles from '../../styles/modules/RecordingsPage.module.scss';
 
 // TODO: Define proper types
@@ -63,8 +63,6 @@ export default function RecordingItem({
   viewCount,
   hideActions,
 }: RecordingItemProps) {
-  const [searchParams] = useSearchParams();
-  
   const getImageSrc = (recording: RecordingModalItem) => {
     const defaultThumbnail = "/assets/default-video-thumbnail.png";
     if (recording.encodingStatus !== "DONE") {
@@ -74,16 +72,22 @@ export default function RecordingItem({
   };
   
   const imageSource = getImageSrc(recording);
-  const recordingUrl = !isCheckboxMode ? generateUrl(`/view/${recording.id}`, searchParams) : undefined;
+  
+  // For Electron/HashRouter, use Link component instead of anchor tag
+  const RecordingLink = ({ children, ...props }: any) => {
+    if (isCheckboxMode) {
+      return <div {...props}>{children}</div>;
+    }
+    return <Link to={`/view/${recording.id}`} {...props}>{children}</Link>;
+  };
 
   return (
-    <a
+    <RecordingLink
       key={recording.id}
-      href={recordingUrl}
       className={`${styles.recordingItem} ${!hideActions ? styles.multiSelect : ''}`}
       onClick={
         isCheckboxMode && onClick
-          ? (e) => {
+          ? (e: React.MouseEvent) => {
               e.preventDefault();
               onClick(e);
             }
@@ -203,6 +207,6 @@ export default function RecordingItem({
           )}
         </div>
       </div>
-    </a>
+    </RecordingLink>
   );
 }
