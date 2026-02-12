@@ -100,15 +100,17 @@
   }
 
   .logo {
+    font-family: "Shrikhand", "__Shrikhand_Fallback_8fa858", cursive, system-ui, -apple-system, sans-serif;
     font-style: italic;
-    font-size: 1.5rem;
-    font-family: var(--font-logo);
-    color: $title;
-
+    font-weight: 400;
+    font-size: 24px;
+    line-height: 37px;
+    color: rgb(65, 50, 69);
     padding: 0;
 
     @media screen and (max-width: $md) {
-      font-size: 1.2rem;
+      font-size: 20px;
+      line-height: 30px;
     }
   }
 
