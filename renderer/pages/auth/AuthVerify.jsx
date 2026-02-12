@@ -42,7 +42,7 @@ export default function AuthVerifyPage() {
         email: ventoUser.email,
         isEmailChanged: !!ventoUser.isEmailChanged,
       });
-      setModalMessage(`A new activation email has been sent to: ${ventoUser.email}`);
+            setModalMessage(`An new activation email has been sent to: ${ventoUser.email}`);
       setModalOpen(true);
       setCountdown(60);
       if (ventoUser?.id) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 // TODO: Install @mantine/notifications package
@@ -22,8 +22,17 @@ import EmbedRecording from './pages/view/EmbedRecording';
 import DownloadRecording from './pages/view/DownloadRecording';
 import EditorPage from './pages/editor/Editor';
 import ProfilePage from './pages/profile/Profile';
+import { useAuth } from './stores/authStore';
 
 function App() {
+  const { initializeAuth } = useAuth();
+
+  useEffect(() => {
+    // Initialize Firebase auth listener
+    const cleanup = initializeAuth();
+    return cleanup;
+  }, [initializeAuth]);
+
   return (
     <MantineProvider>
       {/* <Notifications /> */}
@@ -33,7 +42,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/pricing" element={<Pricing />} />
-              <Route path="/login" element={<Auth />} />
+              <Route path="/login" element={<Auth login />} />
               <Route path="/signup" element={<Auth />} />
               <Route path="/auth/action" element={<AuthAction />} />
               <Route path="/auth/verify" element={<AuthVerify />} />

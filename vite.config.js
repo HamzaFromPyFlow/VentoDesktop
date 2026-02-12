@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   root: './renderer',
   base: './',
+  // Load .env file from the parent directory (VentoDesktop root)
+  envDir: path.resolve(__dirname),
   build: {
     outDir: '../dist',
     emptyOutDir: true

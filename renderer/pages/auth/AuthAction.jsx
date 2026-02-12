@@ -5,33 +5,47 @@ import { generateUrl } from '@lib/helper-pure';
 import { isUserFreePlan } from '@lib/payment-helper';
 import webAPI from '@lib/webapi';
 import { getAuth, applyActionCode } from 'firebase/auth';
+import { useAuth } from '../../stores/authStore';
 import styles from '../../styles/modules/Auth.module.scss';
 
 export default function AuthActionPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { ventoUser, loadingUser } = useAuth();
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const mode = searchParams.get('mode');
   const oobCode = searchParams.get('oobCode');
   const inviteToken = searchParams.get('invite-token');
 
+  const acceptInvitation = async () => {
+    if (inviteToken && ventoUser?.id) {
+      try {
+        await webAPI.team.teamAcceptInvitation(inviteToken);
+        localStorage.setItem(`${ventoUser.id}-invite`, "true");
+      } catch (err) {
+        console.error('Failed to accept invitation:', err);
+      }
+    }
+  };
+
   useEffect(() => {
-    if (mode === 'verifyEmail' && oobCode) {
+    if (mode === 'verifyEmail' && oobCode && window) {
       const auth = getAuth();
       applyActionCode(auth, oobCode)
         .then(async () => {
+          // Refresh User Info so that token can be set beforehand
           const authUser = auth.currentUser;
           await authUser?.reload();
           setIsVerified(true);
           setIsLoading(false);
         })
         .catch((error) => {
-          console.error('Verification error:', error);
+          console.log("error", error);
           setIsLoading(false);
           setIsVerified(false);
         });
-    } else if (mode === 'resetPassword' && oobCode) {
+    } else if (mode === 'resetPassword' && oobCode && window) {
       navigate(`/auth/reset-password?mode=resetPassword&oobCode=${oobCode}`);
     } else {
       setIsLoading(false);
@@ -39,20 +53,10 @@ export default function AuthActionPage() {
   }, [mode, oobCode, navigate]);
 
   useEffect(() => {
-    const acceptInvitation = async () => {
-      if (inviteToken) {
-        try {
-          await webAPI.team.teamAcceptInvitation(inviteToken);
-          localStorage.setItem('invite-accepted', 'true');
-        } catch (err) {
-          console.error('Failed to accept invitation:', err);
-        }
-      }
-    };
-    if (isVerified) {
+    if (isVerified && loadingUser === 'hasUser') {
       acceptInvitation();
     }
-  }, [isVerified, inviteToken]);
+  }, [isVerified, loadingUser, inviteToken, ventoUser?.id]);
 
   return (
     <main className={styles.main}>
@@ -78,11 +82,19 @@ export default function AuthActionPage() {
             />
             {isVerified && (
               <a
-                href={generateUrl('/recordings')}
+                href={generateUrl(
+                  (!isUserFreePlan(ventoUser) || ventoUser?.isEmailChanged)
+                    ? "/recordings"
+                    : "/pricing?onBoarding=true"
+                )}
                 className={styles.recordNow}
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate('/recordings');
+                  navigate(
+                    (!isUserFreePlan(ventoUser) || ventoUser?.isEmailChanged)
+                      ? "/recordings"
+                      : "/pricing?onBoarding=true"
+                  );
                 }}
               >
                 Get Started

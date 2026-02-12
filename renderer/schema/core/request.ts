@@ -240,16 +240,37 @@ const getResponseBody = async (response: Response): Promise<any> => {
     if (response.status !== 204) {
         try {
             const contentType = response.headers.get('Content-Type');
+            const text = await response.text();
+            
+            // If response is empty, return undefined
+            if (!text || text.trim().length === 0) {
+                return undefined;
+            }
+            
             if (contentType) {
                 const isJSON = contentType.toLowerCase().startsWith('application/json');
                 if (isJSON) {
-                    return await response.json();
+                    try {
+                        return JSON.parse(text);
+                    } catch (parseError) {
+                        // If JSON parsing fails, return undefined instead of throwing
+                        console.warn('[request] Failed to parse JSON response:', parseError);
+                        return undefined;
+                    }
                 } else {
-                    return await response.text();
+                    return text;
                 }
             }
+            
+            // If no content-type, try to parse as JSON, fallback to text
+            try {
+                return JSON.parse(text);
+            } catch {
+                return text;
+            }
         } catch (error) {
-            console.error(error);
+            console.error('[request] Error reading response body:', error);
+            return undefined;
         }
     }
     return undefined;
