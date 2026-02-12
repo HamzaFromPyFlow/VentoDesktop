@@ -1,17 +1,27 @@
 @use "../mixins" as *;
 @use "../variables" as *;
 
+.headerWrapper {
+  max-width: $max-width;
+  margin: 0 auto;
+  // Header handles its own padding, so no padding here
+}
+
 .main {
   max-width: $max-width;
-  padding: 0 $padding-x;
+  padding: 0 50px;
   margin: 0 auto;
+
+  @media screen and (max-width: $md) {
+    padding: 0 10px;
+  }
 
   .heading {
     @include flex;
     align-items: center;
     gap: 0.5rem 1.5rem;
-    margin-left: 1.5rem;
-    margin-right: 1.5rem;
+    margin-left: 0;
+    margin-right: 0;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
     padding-block: 1rem;

@@ -48,7 +48,7 @@ export default function RecordingsPage() {
   const [page, setPage] = useState(0);
   const [archivedPage, setArchivedPage] = useState(0);
   const [loading, setLoading] = useState(false);
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const loader = useRef<HTMLDivElement | null>(null);
   const actionBarRef = useRef<HTMLDivElement | null>(null);
   const recordingsContainerRef = useRef<HTMLDivElement | null>(null);
@@ -141,10 +141,10 @@ export default function RecordingsPage() {
 
         // Convert recordings to modal items
         const convertedRecordings = recordings.map((recording: any) =>
-          convertToRecordingModalItem(recording, ventoUser)
+          convertToRecordingModalItem(recording, ventoUser ?? undefined)
         );
         const convertedArchivedRecordings = archivedRecordings.map((recording: any) =>
-          convertToRecordingModalItem(recording, ventoUser)
+          convertToRecordingModalItem(recording, ventoUser ?? undefined)
         );
 
         // Separate folders by archived status
@@ -181,7 +181,7 @@ export default function RecordingsPage() {
         recordings.length ?? 0
       );
       const newRecordings = res.data?.map((recording: any) =>
-        convertToRecordingModalItem(recording, ventoUser)
+        convertToRecordingModalItem(recording, ventoUser ?? undefined)
       ) || [];
       const fullData = [...recordings, ...newRecordings];
       setRecordings(fullData);
@@ -313,10 +313,12 @@ export default function RecordingsPage() {
   };
 
   return (
-    <main className={styles.main}>
-      <Header/>
-      
-      <div className={styles.heading}>
+    <>
+      <div className={styles.headerWrapper}>
+        <Header/>
+      </div>
+      <main className={styles.main}>
+        <div className={styles.heading}>
         <button
           className={!showArchived ? styles.activeBtn : ''}
           onClick={() => setShowArchived(false)}
@@ -842,7 +844,7 @@ export default function RecordingsPage() {
             const deletedFolder = await webAPI.folder.folderDeleteFolder(focusedFolderId);
             if (deletedFolder?.recordings) {
                       const items = (deletedFolder.recordings || []).map((recording: any) =>
-                        convertToRecordingModalItem(recording, ventoUser)
+                        convertToRecordingModalItem(recording, ventoUser ?? undefined)
                       );
                       setRecordings([...items, ...recordings]);
             }
@@ -872,6 +874,7 @@ export default function RecordingsPage() {
         opened={modalStates.uploadNewVideoModal}
         onClose={() => setModalStates({ uploadNewVideoModal: false })}
       />
-    </main>
+      </main>
+    </>
   );
 }

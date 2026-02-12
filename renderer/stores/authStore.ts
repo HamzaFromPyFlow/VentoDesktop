@@ -91,18 +91,54 @@ export const useAuth = create<AuthState>((set, get) => {
     localStorage.removeItem('vento-token');
   };
 
-  const signOut = () => {
+  const signOut = async () => {
     ignoreTokenChange = true;
-    firebaseSignOut(auth);
+    try {
+      // Sign out from Firebase first
+      await firebaseSignOut(auth);
+      console.log("[authStore] Firebase signOut completed");
+    } catch (error) {
+      console.error("[authStore] Error during Firebase signOut:", error);
+    }
+    
+    // Clear all local state
+    updateVentoUser(null);
+    set({ ventoUser: null, user: undefined, recordingNo: 0, loadingUser: 'noUser' });
+    webAPI.request.config.TOKEN = undefined;
     localStorage.removeItem('vento-token');
-    set({ ventoUser: null, user: undefined, recordingNo: 0 });
+    localStorage.setItem('lastLoginUpdate', "");
+    
+    // Clear token refresh timer
+    if (tokenRefreshTimer) {
+      clearInterval(tokenRefreshTimer);
+      tokenRefreshTimer = undefined;
+    }
+    
+    // Reset ignoreTokenChange after a short delay to allow state to settle
+    setTimeout(() => {
+      ignoreTokenChange = false;
+    }, 100);
+    
+    // Redirect to landing page
     if (typeof window !== 'undefined') {
-      window.location.href = '/';
+      window.location.hash = '#/';
     }
   };
 
   const initializeAuth = () => {
     set({ loadingUser: 'loading' });
+
+    // Check initial auth state immediately (for app restart scenario)
+    // Note: onIdTokenChanged will fire automatically with current user if one exists
+    // So we don't need to manually trigger it here
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      console.log("[authStore] Initial auth state check - user found:", currentUser.uid, "waiting for onIdTokenChanged...");
+      // onIdTokenChanged will fire automatically, so we don't need to do anything here
+    } else {
+      console.log("[authStore] Initial auth state check - no user found, setting to noUser");
+      set({ loadingUser: 'noUser' });
+    }
 
     const unsubscribe = onIdTokenChanged(auth, async (newUser) => {
       if (ignoreTokenChange) {
@@ -223,13 +259,14 @@ export const useAuth = create<AuthState>((set, get) => {
             const redirectTo = query.get("redirect_to");
             
             // Default redirect to recordings page if no redirect_to specified
-            // Only redirect if we're currently on login/signup/auth pages
+            // Only redirect if we're currently on login/signup/auth pages or landing page
             const currentHash = window.location.hash.replace('#', '') || '';
             const currentPathname = window.location.pathname || '';
             const currentPath = currentHash || currentPathname;
             const isOnAuthPage = currentPath.includes('/login') || currentPath.includes('/signup') || currentPath.includes('/auth/verify') || currentPath.includes('/auth/action') || currentPathname.includes('/login') || currentPathname.includes('/signup');
+            const isOnLandingPage = currentPath === '/' || currentPath === '';
             
-            console.log("[authStore] Login complete - emailVerified:", newUser.emailVerified, "isOnAuthPage:", isOnAuthPage, "currentPath:", currentPath);
+            console.log("[authStore] Login complete - emailVerified:", newUser.emailVerified, "isOnAuthPage:", isOnAuthPage, "isOnLandingPage:", isOnLandingPage, "currentPath:", currentPath);
             
             if (redirectTo) {
               console.log("[authStore] Redirecting to:", redirectTo);
@@ -239,37 +276,108 @@ export const useAuth = create<AuthState>((set, get) => {
               } else {
                 window.location.hash = `#${redirectTo}`;
               }
-            } else if (isOnAuthPage && newUser.emailVerified) {
-              // Default redirect to recordings page after successful login/signup (only if email is verified)
+            } else if ((isOnAuthPage || isOnLandingPage) && newUser.emailVerified) {
+              // Default redirect to recordings page after successful login/signup or app restart (only if email is verified)
               console.log("[authStore] No redirect_to specified, redirecting to /recordings");
               window.location.hash = '#/recordings';
             } else if (!newUser.emailVerified) {
               // Email not verified - redirect handled earlier in the function
               console.log("[authStore] Email not verified, redirect should have happened earlier");
             } else {
-              console.log("[authStore] No redirect - not on auth page or email not verified");
+              console.log("[authStore] No redirect - not on auth/landing page or email not verified");
             }
           } else {
-            // Same user - but check if we need to redirect from login page
-            const currentHash = window.location.hash.replace('#', '') || '';
-            const currentPathname = window.location.pathname || '';
-            const currentPath = currentHash || currentPathname;
-            const isOnAuthPage = currentPath.includes('/login') || currentPath.includes('/signup');
+            // Same user - but we might need to reload ventoUser if it's null (app restart scenario)
+            const currentVentoUser = get().ventoUser;
             
-            if (isOnAuthPage && newUser.emailVerified) {
-              console.log("[authStore] Same user but on auth page, redirecting to /recordings");
-              window.location.hash = '#/recordings';
+            if (!currentVentoUser && newUser.emailVerified) {
+              // App restarted - reload ventoUser from backend
+              console.log("[authStore] Same user but ventoUser is null, reloading from backend");
+              try {
+                const [token, getVentoUserRes] = await Promise.all([
+                  newUser.getIdToken(),
+                  webAPI.user.userGetWithRecordingNo(newUser.uid).catch(() => null),
+                ]);
+                
+                if (getVentoUserRes) {
+                  updateVentoUser(getVentoUserRes.user);
+                  set({ recordingNo: getVentoUserRes.recordingNo });
+                  webAPI.request.config.TOKEN = token;
+                  localStorage.setItem('vento-token', token);
+                  set({ loadingUser: 'hasUser' });
+                  
+                  // Check if we need to redirect
+                  const currentHash = window.location.hash.replace('#', '') || '';
+                  const currentPathname = window.location.pathname || '';
+                  const currentPath = currentHash || currentPathname;
+                  const isOnAuthPage = currentPath.includes('/login') || currentPath.includes('/signup');
+                  const isOnLandingPage = currentPath === '/' || currentPath === '';
+                  
+                  if (isOnLandingPage || isOnAuthPage) {
+                    console.log("[authStore] Reloaded ventoUser, redirecting from landing/auth page to /recordings");
+                    window.location.hash = '#/recordings';
+                  }
+                } else {
+                  set({ loadingUser: 'noUser' });
+                }
+              } catch (err) {
+                console.error("[authStore] Error reloading ventoUser:", err);
+                set({ loadingUser: 'noUser' });
+              }
+            } else {
+              // Same user and ventoUser exists - check if we need to redirect
+              const currentHash = window.location.hash.replace('#', '') || '';
+              const currentPathname = window.location.pathname || '';
+              const currentPath = currentHash || currentPathname;
+              const isOnAuthPage = currentPath.includes('/login') || currentPath.includes('/signup');
+              const isOnLandingPage = currentPath === '/' || currentPath === '';
+              
+              if (newUser.emailVerified && (isOnLandingPage || isOnAuthPage)) {
+                console.log("[authStore] Same user but on landing/auth page, redirecting to /recordings");
+                window.location.hash = '#/recordings';
+              }
+              
+              // Ensure loadingUser is set correctly
+              if (newUser.emailVerified && currentVentoUser) {
+                set({ loadingUser: 'hasUser' });
+              }
             }
           }
         } catch (e) {
           console.log("Error created user!", e);
         }
       } else {
+        // User signed out or no user
+        console.log("[authStore] onIdTokenChanged - no user (signed out or no session)");
         set({ user: undefined });
         updateVentoUser(null);
+        set({ recordingNo: 0 });
         localStorage.setItem('lastLoginUpdate', "");
         localStorage.removeItem('vento-token');
+        webAPI.request.config.TOKEN = undefined;
+        
+        // Clear token refresh timer
+        if (tokenRefreshTimer) {
+          clearInterval(tokenRefreshTimer);
+          tokenRefreshTimer = undefined;
+        }
+        
         set({ loadingUser: 'noUser' });
+        
+        // If we're on a protected page, redirect to landing
+        const currentHash = window.location.hash.replace('#', '') || '';
+        const currentPathname = window.location.pathname || '';
+        const currentPath = currentHash || currentPathname;
+        const isProtectedPage = !currentPath.includes('/pricing') && 
+                                !currentPath.includes('/policy') && 
+                                !currentPath.includes('/auth/') &&
+                                currentPath !== '/' && 
+                                currentPath !== '';
+        
+        if (isProtectedPage) {
+          console.log("[authStore] User signed out, redirecting from protected page to landing");
+          window.location.hash = '#/';
+        }
       }
     });
 

@@ -48,7 +48,7 @@ function Home() {
         }}
       />
 
-      <Header startRecording={false}/>
+      <Header showPricing hideNewRecordingButton />
 
       <div className="relative z-10 max-w-content mx-auto w-full px-6 py-8 md:py-16 flex flex-col items-center flex-wrap">
         {/* Hero Section */}

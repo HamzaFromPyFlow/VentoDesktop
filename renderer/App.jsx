@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 // TODO: Install @mantine/notifications package
 // import { Notifications } from '@mantine/notifications';
@@ -23,6 +23,51 @@ import DownloadRecording from './pages/view/DownloadRecording';
 import EditorPage from './pages/editor/Editor';
 import ProfilePage from './pages/profile/Profile';
 import { useAuth } from './stores/authStore';
+import { auth } from './lib/firebase';
+
+// Component to handle initial auth redirect
+function AuthRedirectHandler() {
+  const { ventoUser, loadingUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (loadingUser === 'loading') {
+      console.log('[App] Auth still loading, waiting...');
+      return;
+    }
+
+    // For HashRouter, pathname is usually empty, so we check hash
+    const hashPath = location.hash.replace('#', '') || location.pathname || '/';
+    const currentPath = hashPath || '/';
+    const isOnLandingPage = currentPath === '/' || currentPath === '';
+    const isOnAuthPage = currentPath.includes('/login') || currentPath.includes('/signup') || currentPath.includes('/auth/');
+    const isPublicPage = currentPath.includes('/pricing') || currentPath.includes('/policy');
+
+    console.log('[App] AuthRedirectHandler check:', {
+      loadingUser,
+      hasVentoUser: !!ventoUser,
+      currentPath,
+      isOnLandingPage,
+      isOnAuthPage,
+      isPublicPage
+    });
+
+    // Case 1: User is logged in and on landing/auth page -> redirect to recordings
+    if (loadingUser === 'hasUser' && ventoUser && (isOnLandingPage || isOnAuthPage)) {
+      console.log('[App] User is logged in, redirecting from', currentPath, 'to /recordings');
+      navigate('/recordings', { replace: true });
+    }
+    // Case 2: User is not logged in and on protected page -> redirect to landing
+    else if (loadingUser === 'noUser' && !isOnLandingPage && !isOnAuthPage && !isPublicPage) {
+      console.log('[App] User is not logged in, redirecting from', currentPath, 'to /');
+      navigate('/', { replace: true });
+    }
+  }, [loadingUser, ventoUser, navigate, location]);
+
+  return null;
+}
 
 function App() {
   const { initializeAuth } = useAuth();
@@ -38,6 +83,7 @@ function App() {
       {/* <Notifications /> */}
       <HashRouter>
         <div className="flex flex-col h-screen bg-white overflow-hidden">
+          <AuthRedirectHandler />
           <main className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/" element={<Landing />} />

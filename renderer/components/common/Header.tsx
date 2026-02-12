@@ -85,7 +85,7 @@ export default function Header({
             ento
           </Link>
           {leftSlot}
-          {showPricing && isUserFreePlan(ventoUser) && (
+          {showPricing && (
             <Link
               to="/pricing"
               className={styles.pricing}
