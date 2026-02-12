@@ -9,6 +9,8 @@ import Auth from './pages/auth/Auth';
 import RecordPage from './pages/record/Record';
 import PolicyPage from './pages/policy/Policy';
 import RecordingsPage from './pages/recordings/Recordings';
+import ViewRecording from './pages/view/ViewRecording';
+import EditorPage from './pages/editor/Editor';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
               <Route path="/record" element={<RecordPage />} />
               <Route path="/policy" element={<PolicyPage />} />
               <Route path="/recordings" element={<RecordingsPage />} />
+              <Route path="/view/:recordingId" element={<ViewRecording />} />
+              <Route path="/editor" element={<EditorPage />} />
             </Routes>
           </main>
         </div>

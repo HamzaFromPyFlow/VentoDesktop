@@ -94,7 +94,7 @@ export default function Header({
             </a>
           )}
         </div>
-        {pathname === '/recordings' && (
+        {pathname == '/recordings' && (
           <div className={styles.midContainer}>
             <RecordingsSearchBar />
           </div>
@@ -150,7 +150,7 @@ export default function Header({
   );
 }
 
-// Extend Window interface for Crisp
+// Extend Window interface for Crisp and Google Analytics
 declare global {
   interface Window {
     $crisp: any[];

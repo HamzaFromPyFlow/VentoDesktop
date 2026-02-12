@@ -1,0 +1,64 @@
+@use "../_mixins" as *;
+@use "../_variables" as *;
+
+$view-recording-max-width: 76rem;
+
+.main {
+  @include flex(column);
+  gap: 0rem;
+  padding: 1rem $padding-x;
+  margin: 0 auto;
+
+  max-width: $view-recording-max-width;
+
+  @include lg {
+    flex-direction: row;
+    gap: 2rem;
+  }
+
+  .leftColumn {
+    @include flex(column);
+    flex: 1;
+
+    .videoHeaderPrompt {
+      @include flex();
+      align-items: center;
+      flex-wrap: wrap;
+
+      margin-bottom: 1.25rem;
+
+      .infoContainer {
+        width: 100%;
+
+        @include flex;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 1rem 0 0 0;
+
+        .leftColumn {
+          @include flex(column);
+          gap: 0.25rem;
+
+          .title {
+            font-size: 1.5rem;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+
+    .encodingText {
+      @include flex-center(column);
+      width: 100%;
+      height: 25rem;
+
+      background-color: $neutral-800;
+      border-radius: 10px;
+      margin: 0 auto;
+
+      @include gap-y;
+    }
+  }
+}
+

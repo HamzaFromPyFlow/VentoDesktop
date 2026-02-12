@@ -5,19 +5,22 @@ import { useRecordStore } from '../../stores/recordStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import InputSettings from './InputSettings';
 import CameraOnlyRecordingToolbar from './CameraOnlyRecordingToolbar';
+import Toolbar from './Toolbar';
+import RecordPreview from './RecordPreview';
 
 // Desktop clone of the vento premium record-init-menu component.
 // This matches the structure and behavior of the original, but simplified
 // for desktop (no network checks, payments, or real recording yet).
 
 function RecordInitMenu() {
-  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder } =
+  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder, finalVideoUrl } =
     useRecordStore((state) => ({
       recordingState: state.recordingState,
       setRecordingState: state.setRecordingState,
       lastDisplayType: state.lastDisplayType,
       setLastDisplayType: state.setLastDisplayType,
       mediaRecorder: state.mediaRecorder,
+      finalVideoUrl: state.finalVideoUrl,
     }));
 
   const { mode, selectedVideoInputId } = useSettingsStore((state) => ({
@@ -40,18 +43,13 @@ function RecordInitMenu() {
     
     // Check if camera mode but no video source selected
     if (mode === 'camera' && selectedVideoInputId === 'none') {
-      // In desktop, we'll just proceed anyway for now
       console.warn('Camera mode selected but no video source');
       setPreparing(false);
       return;
     }
 
-    // Simulate a brief delay (like network checks in original)
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // For desktop, we'll just simulate starting recording
+    await useRecordStore.getState().startRecording();
     setPreparing(false);
-    setRecordingState('recording-cam');
   }
 
   /**
@@ -70,24 +68,22 @@ function RecordInitMenu() {
       mediaRecorder.stop();
     }
 
-    // For desktop, just stop recording state
-    setRecordingState('none');
+    setRecordingState('paused');
   }
 
   /**
    * This is the function that is called when user clicks on the finish button.
    * @param redirectToEditor - If true, open the editor component after recording is done.
    */
-  async function onCameraRecordingStop(redirectToEditor = true) {
+  async function onCameraRecordingStop(finishAndSave = true) {
     const event = new CustomEvent('VENTO_EDITOR_STOP');
     document.dispatchEvent(event);
 
     // Stop recording if we are
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
+    await useRecordStore.getState().stopRecording();
 
-    // For desktop, just reset state
+    // For now we treat both save/delete the same at store level.
+    // The preview component decides what to do next (open editor or discard).
     setRecordingState('none');
     setPreparing(false);
   }
@@ -129,6 +125,19 @@ function RecordInitMenu() {
           )}
         </InputSettings>
       </div>
+
+      {/* Global recording toolbar (status + pause/delete) */}
+      {isCameraRecording && (
+        <div className="mt-4 flex justify-center">
+          <Toolbar
+            onPause={onCameraRecordingPause}
+            onStop={(finishAndSave) => onCameraRecordingStop(!finishAndSave)}
+          />
+        </div>
+      )}
+
+      {/* Local preview of the last recorded video */}
+      <RecordPreview />
     </>
   );
 }
