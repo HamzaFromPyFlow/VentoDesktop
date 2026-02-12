@@ -17,7 +17,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './renderer'),
       '@lib': path.resolve(__dirname, './renderer/lib'),
-      '@schema': path.resolve(__dirname, './renderer/schema')
+      '@schema': path.resolve(__dirname, './renderer/schema'),
+      '@stores': path.resolve(__dirname, './renderer/stores')
     }
   },
   css: {

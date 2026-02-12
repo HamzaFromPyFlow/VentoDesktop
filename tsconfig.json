@@ -9,6 +9,7 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "allowJs": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -24,7 +25,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./renderer/*"],
-      "@schema/*": ["./renderer/schema/*"]
+      "@lib/*": ["./renderer/lib/*"],
+      "@lib": ["./renderer/lib"],
+      "@schema/*": ["./renderer/schema/*"],
+      "@schema": ["./renderer/schema"],
+      "@stores/*": ["./renderer/stores/*"],
+      "@stores": ["./renderer/stores"]
     }
   },
   "include": ["renderer/**/*"],

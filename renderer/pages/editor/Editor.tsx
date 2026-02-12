@@ -2,11 +2,12 @@ import { useEffect, useRef, useState, useCallback, useReducer } from 'react';
 import { Loader } from '@mantine/core';
 import { BsFillPlayFill } from 'react-icons/bs';
 import { IoIosPause } from 'react-icons/io';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { formatVideoDurationWithMs, convertToMilliseconds, updateBlurAfterTrim } from '@lib/helper-pure';
 import { DEFAULT_LINK_TEXT, DEFAULT_LINK_URL } from '@lib/constants';
 import { CtaType } from '@lib/types';
-import { AuthorAnnotation, ChapterHeading } from '@schema/index';
+import type { AuthorAnnotation } from '@schema/models/AuthorAnnotation';
+import type { ChapterHeading } from '@schema/models/ChapterHeading';
 import webAPI from '@lib/webapi';
 import Header from '../../components/common/Header';
 import VideoPlayer from '../../components/media/VideoPlayer';
@@ -22,7 +23,7 @@ import { useRecordStore } from '../../stores/recordStore';
 import { useEditorStore } from '../../stores/editorStore';
 import { useAuth } from '../../stores/authStore';
 import styles from '../../styles/modules/Editor.module.scss';
-import cx from 'classnames';
+// import cx from 'classnames'; // Unused import
 
 /**
  * Full-featured desktop editor with all functionality:
@@ -41,39 +42,40 @@ function generateId() {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-// Modal states type (using JSDoc for JSX file)
-/**
- * @typedef {Object} ModalStates
- * @property {boolean} authorAnnotation
- * @property {boolean} chapterHeading
- * @property {boolean} editorTooltip
- */
+// Type definitions
+type ModalStates = {
+  authorAnnotation: boolean;
+  chapterHeading: boolean;
+  editorTooltip: boolean;
+};
 
-/**
- * @typedef {Object} RecordingInfo
- * @property {ChapterHeading | null} currentHeading
- * @property {AuthorAnnotation | null} currentAnnotation
- * @property {any | null} currentCta
- * @property {ChapterHeading[]} videoChapterHeadings
- * @property {AuthorAnnotation[]} videoAnnotations
- * @property {any[]} videoCTAs
- * @property {any[]} videoBlur
- * @property {number} currentVideoDuration
- */
+type RecordingInfo = {
+  currentHeading: ChapterHeading | null;
+  currentAnnotation: AuthorAnnotation | null;
+  currentCta: any | null;
+  videoChapterHeadings: ChapterHeading[];
+  videoAnnotations: AuthorAnnotation[];
+  videoCTAs: any[];
+  videoBlur: any[];
+  currentVideoDuration: number;
+};
 
 function EditorPage() {
   const navigate = useNavigate();
+  const { id: recordingId } = useParams();
   const { ventoUser } = useAuth();
-  const videoRef = useRef(null);
-  const playerRef = useRef(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playerRef = useRef<any>(null);
   
   const [currentVideoDuration, setCurrentVideoDuration] = useState(0);
   const [isVideoEdit, setIsVideoEdit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingError, setProcessingError] = useState(null);
-  const [currentRecording, setCurrentRecording] = useState(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [currentRecording, setCurrentRecording] = useState<any | null>(null);
 
-  const [modalStates, setModalStates] = useReducer(
+  const [modalStates, setModalStates] = useReducer<
+    React.Reducer<ModalStates, Partial<ModalStates>>
+  >(
     (prev, cur) => ({ ...prev, ...cur }),
     {
       authorAnnotation: false,
@@ -82,21 +84,23 @@ function EditorPage() {
     }
   );
 
-  const [info, setInfo] = useReducer(
+  const [info, setInfo] = useReducer<
+    React.Reducer<RecordingInfo, Partial<RecordingInfo>>
+  >(
     (prev, cur) => ({ ...prev, ...cur }),
     {
       currentHeading: null,
       currentAnnotation: null,
       currentCta: null,
-      videoChapterHeadings: [],
-      videoAnnotations: [],
-      videoCTAs: [],
-      videoBlur: [],
+      videoChapterHeadings: [] as ChapterHeading[],
+      videoAnnotations: [] as AuthorAnnotation[],
+      videoCTAs: [] as any[],
+      videoBlur: [] as any[],
       currentVideoDuration: 0,
-    }
+    } as RecordingInfo
   );
 
-  const { finalVideoUrl } = useRecordStore((state) => ({
+  const { finalVideoUrl } = useRecordStore((state: any) => ({
     finalVideoUrl: state.finalVideoUrl,
   }));
 
@@ -113,7 +117,7 @@ function EditorPage() {
     blurRegion,
     blurIntensity,
     multiBlurRegion,
-  } = useEditorStore((state) => ({
+  } = useEditorStore((state: any) => ({
     totalVideoDuration: state.totalVideoDuration,
     videoElement: state.videoElement,
     trimMode: state.trimMode,
@@ -130,13 +134,10 @@ function EditorPage() {
 
   // Load recording data from URL params if editing existing recording
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const recordingId = urlParams.get('id');
-    
     if (recordingId) {
       // Load recording from API
       webAPI.recording.recordingGetRecording(recordingId)
-        .then((recording) => {
+        .then((recording: any) => {
           setCurrentRecording(recording);
           setInfo({
             videoChapterHeadings: recording.metadata?.headings ?? [],
@@ -145,15 +146,15 @@ function EditorPage() {
             videoBlur: recording.metadata?.blur ?? [],
           });
         })
-        .catch((err) => {
+        .catch((err: any) => {
           console.error('Error loading recording:', err);
           setProcessingError('Failed to load recording. Please try again.');
         });
     }
-  }, []);
+  }, [recordingId]);
 
   // Initialize video element reference when VideoPlayer is ready
-  const handlePlayerReady = useCallback((player) => {
+  const handlePlayerReady = useCallback((player: any) => {
     if (player && player.el) {
       const videoEl = player.el().querySelector('video');
       if (videoEl) {
@@ -176,7 +177,7 @@ function EditorPage() {
   }, []);
 
   // Update CTA list helper
-  const updateCtaList = useCallback((currentCta) => {
+  const updateCtaList = useCallback((currentCta: any) => {
     const updatedVideoCTAs = [...info.videoCTAs];
     const editingCtaIndex = info.videoCTAs.findIndex(
       (cta) => currentCta.id === cta.id
@@ -194,7 +195,7 @@ function EditorPage() {
   }, [info.videoCTAs]);
 
   // Handle CTA input changes
-  const handleCtaToggle = useCallback((checked, done) => {
+  const handleCtaToggle = useCallback((checked: boolean, done: boolean) => {
     if (info.currentCta) {
       const updatedCta = { ...info.currentCta, isActive: checked };
       setInfo({ currentCta: updatedCta });
@@ -206,7 +207,7 @@ function EditorPage() {
     }
   }, [info.currentCta, updateCtaList]);
 
-  const handleCtaTextChange = useCallback((value) => {
+  const handleCtaTextChange = useCallback((value: string) => {
     if (info.currentCta) {
       const updatedCta = { ...info.currentCta, linkCtaText: value };
       setInfo({ currentCta: updatedCta });
@@ -214,7 +215,7 @@ function EditorPage() {
     }
   }, [info.currentCta, updateCtaList]);
 
-  const handleCtaUrlChange = useCallback((value) => {
+  const handleCtaUrlChange = useCallback((value: string) => {
     if (info.currentCta) {
       const updatedCta = { ...info.currentCta, linkCtaUrl: value };
       setInfo({ currentCta: updatedCta });
@@ -222,7 +223,7 @@ function EditorPage() {
     }
   }, [info.currentCta, updateCtaList]);
 
-  const handleCtaTimeChange = useCallback((value) => {
+  const handleCtaTimeChange = useCallback((value: string) => {
     if (info.currentCta) {
       try {
         const timeMs = convertToMilliseconds(value);
@@ -363,7 +364,7 @@ function EditorPage() {
 
   // Handle editor dropdown actions
   const handleEditorDropdownAction = useCallback(
-    async (action) => {
+    async (action: string) => {
       switch (action) {
         case Action.HEADING: {
           setModalStates({ chapterHeading: true });
@@ -402,7 +403,6 @@ function EditorPage() {
           break;
         }
         case Action.CTA: {
-          const formattedTime = formatVideoDurationWithMs(currentVideoDuration);
           const cta = {
             id: generateId(),
             time: currentVideoDuration,
@@ -472,7 +472,7 @@ function EditorPage() {
   }, [navigate]);
 
   // Handle heading click
-  const handleHeadingClick = useCallback((index) => {
+  const handleHeadingClick = useCallback((index: number) => {
     setInfo({
       currentHeading: info.videoChapterHeadings[index],
     });
@@ -483,7 +483,7 @@ function EditorPage() {
   }, [info.videoChapterHeadings]);
 
   // Handle annotation click
-  const handleAnnotationClick = useCallback((index) => {
+  const handleAnnotationClick = useCallback((index: number) => {
     setInfo({
       currentAnnotation: info.videoAnnotations[index],
     });
@@ -494,7 +494,7 @@ function EditorPage() {
   }, [info.videoAnnotations]);
 
   // Update chapter heading
-  const handleChapterHeadingUpdate = useCallback(async (newChapterHeadings) => {
+  const handleChapterHeadingUpdate = useCallback(async (newChapterHeadings: ChapterHeading[]) => {
     try {
       if (currentRecording) {
         await webAPI.recording.recordingCreateBackupForRecording(currentRecording.id);
@@ -509,7 +509,7 @@ function EditorPage() {
   }, [currentRecording]);
 
   // Update video annotation
-  const handleVideoAnnotationUpdate = useCallback(async (newVideoAnnotations) => {
+  const handleVideoAnnotationUpdate = useCallback(async (newVideoAnnotations: AuthorAnnotation[]) => {
     try {
       if (currentRecording) {
         await webAPI.recording.recordingCreateBackupForRecording(currentRecording.id);
@@ -567,7 +567,7 @@ function EditorPage() {
             )}
 
             <EditorToolbar
-              onStop={(finishAndSave) => {
+              onStop={(finishAndSave: boolean) => {
                 if (finishAndSave) {
                   handleSaveVideo();
                 } else {
@@ -604,29 +604,29 @@ function EditorPage() {
 
             <section className={styles.timelineContainer}>
               <Timeline
-                onCurrentTimeUpdate={(durationInMs) => {
+                onCurrentTimeUpdate={(durationInMs: number) => {
                   setCurrentVideoDuration(durationInMs);
                   setInfo({ currentVideoDuration: durationInMs });
                 }}
-                headings={info.videoChapterHeadings}
+                headings={info.videoChapterHeadings as any}
                 onHeadingClick={handleHeadingClick}
-                annotations={info.videoAnnotations}
+                annotations={info.videoAnnotations as any}
                 onAnnotationClick={handleAnnotationClick}
-                ctas={info.videoCTAs}
-                onCtaClick={(index) => {
+                ctas={info.videoCTAs as any}
+                onCtaClick={(index: number) => {
                   setInfo({ currentCta: info.videoCTAs[index] });
                   useEditorStore.setState({ ctaMode: true });
                   if (videoRef.current) {
                     videoRef.current.currentTime = info.videoCTAs[index].time / 1000;
                   }
                 }}
-                onCtaDurationUpdate={(index, duration) => {
+                onCtaDurationUpdate={(index: number, duration: number) => {
                   const updatedCtas = [...info.videoCTAs];
                   updatedCtas[index].time = duration;
                   setInfo({ videoCTAs: updatedCtas });
                   setIsVideoEdit(true);
                 }}
-                blur={info.videoBlur}
+                blur={info.videoBlur as any}
                 audioUrl={audioUrl}
               />
             </section>
@@ -698,7 +698,7 @@ function EditorPage() {
                     currentVideoDuration={currentVideoDuration}
                     onAction={handleEditorDropdownAction}
                     openTooltip={modalStates.editorTooltip}
-                    setOpenTooltip={(val) => setModalStates({ editorTooltip: val })}
+                    setOpenTooltip={(val: boolean) => setModalStates({ editorTooltip: val })}
                   />
                 </div>
               )}
