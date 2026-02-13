@@ -32,7 +32,10 @@
   },
   "dependencies": {
     "@mantine/core": "^7.17.8",
+    "@mantine/form": "^7.17.8",
     "@mantine/hooks": "^7.17.8",
+    "classnames": "^2.5.1",
+    "firebase": "^9.23.0",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -40,6 +43,9 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.0",
     "remark-gfm": "^4.0.1",
+    "uuid": "^13.0.0",
+    "video.js": "^8.23.7",
+    "videojs-hotkeys": "^0.2.30",
     "zustand": "^4.5.7"
   }
 }
