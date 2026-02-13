@@ -79,7 +79,7 @@ function App() {
   }, [initializeAuth]);
 
   return (
-    <MantineProvider>
+    <MantineProvider withGlobalStyles>
       {/* <Notifications /> */}
       <HashRouter>
         <div className="flex flex-col h-screen bg-white overflow-hidden">

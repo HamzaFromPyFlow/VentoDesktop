@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { Loader } from '@mantine/core';
 import Header from '../../components/common/Header';
+import DowngradePremiumUserModal from '../../components/overlays/modals/DowngradePremiumUserModal';
+import { useAuth } from '../../stores/authStore';
+import { generateUrl } from '../../lib/utils';
+import { logClientEvent } from '../../lib/misc';
+import { MONTHLY_PRICE } from '../../lib/constants';
+import {
+  firePaymentEvent,
+  getLtdPaymentLink,
+  getMonthlyPaymentLink,
+  isUserActiveTeamMember,
+  isUserFreePlan,
+  isUserTeamAdmin,
+} from '../../lib/payment-helper';
 import { BsStars } from 'react-icons/bs';
 import { IoCloseSharp } from 'react-icons/io5';
 import { MdDone } from 'react-icons/md';
 import { TiTick } from 'react-icons/ti';
+import cx from 'classnames';
 import styles from '../../styles/modules/Pricing.module.scss';
-
-const MONTHLY_PRICE = 8;
 
 const ltdTierFeature = [
   "1 hour Recording Length",
@@ -74,47 +88,56 @@ const freeUserFeatureValues = [
   "false",
 ];
 
-function Pricing() {
-  const [isLtd, setIsLtd] = useState(false);
-  const [utmCampaign, setUtmCampaign] = useState(null);
+/**
+ * @param {Object} props
+ * @param {boolean} [props.hideHeader=false] - Whether to hide the header
+ */
+function Pricing({ hideHeader = false } = {}) {
+  const { ventoUser, loadingUser } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [downgradeModalOpened, setDowngradeModalOpened] = useState(false);
+  const onBoarding = searchParams?.get("onBoarding");
+  const utmCampaign = searchParams?.get("utm_campaign");
+  const isLtd =
+    utmCampaign === "ltd" ||
+    utmCampaign === "ltdhunt" ||
+    utmCampaign === "lifetimo" ||
+    utmCampaign === "appsumo";
 
-  // Check for UTM campaign in URL
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const campaign = params.get('utm_campaign');
-    setUtmCampaign(campaign);
-    setIsLtd(
-      campaign === "ltd" ||
-      campaign === "ltdhunt" ||
-      campaign === "lifetimo" ||
-      campaign === "appsumo"
-    );
+  useEffect(() => {
+    logClientEvent("page.view.pricing");
   }, []);
 
-  const getLtdPrice = () => {
-    if (utmCampaign === "ltdhunt" || utmCampaign === "lifetimo") {
-      return "$55";
-    } else if (utmCampaign === "appsumo") {
-      return "$96";
+  useEffect(() => {
+    if (isUserActiveTeamMember(ventoUser) && !isUserTeamAdmin(ventoUser)) {
+      navigate("/recordings");
     }
-    return "$48";
-  };
+  }, [ventoUser, navigate]);
+
+  if (loadingUser === 'loading' || (isUserActiveTeamMember(ventoUser) && !isUserTeamAdmin(ventoUser))) {
+    return (
+      <div className={styles.loadingOverlay}>
+        <Loader size="xl" />
+      </div>
+    );
+  }
 
   return (
     <>
-      <main className={styles.main}>
-        <Header pricing={false} />
-        <h1>Don&apos;t worry, you can cancel or switch plans at any time</h1>
+      {(!hideHeader && !onBoarding) && <Header showPricing={true} />}
+      <main className={styles.main} style={hideHeader ? { paddingBottom: '0px' } : {}}>
+        <h1 style={!hideHeader ? { fontSize: '2.5rem' } : {}}>Don&apos;t worry, you can cancel or switch plans at any time</h1>
         <div className={styles.table}>
-          <div className={`${styles.tableColumn} ${styles.featureNameColumn}`}>
+          <div className={cx(styles.tableColumn, styles.featureNameColumn)}>
             <div className={styles.tableHeader}>
-              <h4 className={`${styles.title} ${styles.ubuntuTitle}`}>Need Help?</h4>
+              <h4 className={styles.title}>Need Help?</h4>
               <p className={styles.description}>
                 Click the chat button in the bottom right corner of the page to chat with someone
               </p>
             </div>
             <div className={styles.mobileHideWrapper}>
-              <ul className={`${styles.featureList} ${styles.featureNames}`}>
+              <ul className={cx(styles.featureList, styles.featureNames)}>
                 {allFeatures.map((feature, i) => (
                   <li key={i}>
                     {feature}
@@ -128,17 +151,21 @@ function Pricing() {
             <div className={styles.tableColumn}>
               <img
                 className={styles.image}
-                src="/assets/green-logo.png"
+                src="/assets/yellow-logo.png"
                 alt="vento logo"
               />
-              <h4 className={`${styles.title} ${styles.ubuntuTitle}`}>Vento Lifetime</h4>
+              <h4 className={styles.title}>Vento Lifetime</h4>
               <p className={styles.description}>
                 Special Lifetime Deal 👀. This is for you special people out
                 there.
               </p>
               <div className={styles.priceContainer}>
                 <span className={styles.price}>
-                  {getLtdPrice()}
+                  {utmCampaign === "ltdhunt" || utmCampaign === "lifetimo"
+                    ? "$55"
+                    : utmCampaign === "appsumo"
+                      ? "$96"
+                      : "$48"}
                 </span>
                 <span className={styles.interval}>
                   one <br /> time
@@ -148,12 +175,15 @@ function Pricing() {
                   DEAL <BsStars />
                 </span>
               </div>
-              <a
-                href="#/subscribe"
+              <Link
+                to={generateUrl(getLtdPaymentLink(ventoUser, utmCampaign), searchParams, false)}
+                onClick={() => {
+                  logClientEvent("click.pricing.ltd");
+                }}
                 className={styles.ctaBtn}
               >
                 Subscribe
-              </a>
+              </Link>
               <p>This includes:</p>
               <ul className={styles.featureList}>
                 {ltdTierFeature.map((feature, i) => (
@@ -168,24 +198,28 @@ function Pricing() {
             <>
               <div className={styles.tableColumn}>
                 <div className={styles.tableHeader}>
-                  <h4 className={`${styles.title} ${styles.ubuntuTitle}`}>Vento Premium</h4>
+                  <h4 className={styles.title}>Vento Premium</h4>
                   <p className={styles.description}>
                     Get access to 1080p, longer recordings, unlimited hosted videos, and more.
                   </p>
                   <div className={styles.priceContainer}>
-                    <span className={`${styles.price} ${styles.ubuntuTitle}`}  >{MONTHLY_PRICE}</span>
+                    <span className={styles.price}>{MONTHLY_PRICE}</span>
                     <span className={styles.interval}>
                       /month/user
                     </span>
                   </div>
-                  <a
-                    href="#/subscribe"
+                  <Link
+                    to={generateUrl(getMonthlyPaymentLink(ventoUser), searchParams, false)}
+                    onClick={() => {
+                      firePaymentEvent("monthly");
+                      logClientEvent("click.pricing.monthly");
+                    }}
                     className={styles.ctaBtn}
                   >
                     Buy Now
-                  </a>
+                  </Link>
                 </div>
-                <ul className={`${styles.featureList} ${styles.mobileHideWrapper}`}>
+                <ul className={cx(styles.featureList, styles.mobileHideWrapper)}>
                   {premiumUserFeatureValues.map((feature, i) => (
                     <li key={i}>
                       {feature === "true" ? (
@@ -201,24 +235,38 @@ function Pricing() {
               </div>
 
               <div className={styles.tableColumn}>
-                <div className={`${styles.tableHeader} ${styles.borderBottom}`}>
-                  <h4 className={`${styles.title} ${styles.ubuntuTitle}`}>Free</h4>
+                <div className={cx(styles.tableHeader, styles.borderBottom)}>
+                  <h4 className={styles.title}>Free</h4>
                   <p className={styles.description}>
                     Get started with Vento.
                   </p>
                   <div className={styles.priceContainer}>
-                    <span className={`${styles.price} ${styles.ubuntuTitle}`}>0</span>
+                    <span className={styles.price}>0</span>
                     <span className={styles.interval}>
                       /month
                     </span>
                   </div>
                   <button
-                    className={styles.ctaBtn}
+                    disabled={!!ventoUser && isUserFreePlan(ventoUser) && !onBoarding}
+                    className={cx(styles.ctaBtn, {
+                      [styles.disabled]: ventoUser && isUserFreePlan(ventoUser) && !onBoarding,
+                    })}
+                    onClick={() => {
+                      if (ventoUser && !isUserFreePlan(ventoUser)) {
+                        setDowngradeModalOpened(true);
+                        return;
+                      }
+                      if (ventoUser && isUserFreePlan(ventoUser) && onBoarding) {
+                        navigate(generateUrl("/recordings", searchParams, false));
+                        return;
+                      }
+                      navigate(generateUrl("/login?redirect_to=/new", searchParams, false));
+                    }}
                   >
-                    Sign Up
+                    {(!ventoUser || onBoarding) ? "Sign Up" : (isUserFreePlan(ventoUser) ? "Current Plan" : "Downgrade To Free")}
                   </button>
                 </div>
-                <ul className={`${styles.featureList} ${styles.mobileHideWrapper}`}>
+                <ul className={cx(styles.featureList, styles.mobileHideWrapper)}>
                   {freeUserFeatureValues.map((feature, i) => (
                     <li key={i}>
                       {feature === "true" ? (
@@ -233,8 +281,8 @@ function Pricing() {
                 </ul>
               </div>
 
-              <div className={styles.laptopHideWrapper}>
-                <ul className={`${styles.featureList} ${styles.tableBorder}`}>
+              <div className={cx(styles.laptopHideWrapper)}>
+                <ul className={cx(styles.featureList, styles.tableBorder)}>
                   <div className={styles.headerRow}>
                     <div className={styles.headerCol}>Premium</div>
                     <div className={styles.headerCol}>Free</div>
@@ -261,6 +309,10 @@ function Pricing() {
           )}
         </div>
       </main>
+      <DowngradePremiumUserModal
+        opened={downgradeModalOpened}
+        onClose={() => setDowngradeModalOpened(false)}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { isBrowser, isSupportedBrowser } from '../../lib/helper-pure';
+import { generateUrl } from '../../lib/utils';
 import { useRedirectAuthUrl, useSignUpRedirectAuthUrl } from '../../lib/hooks';
 import { logClientEvent } from '../../lib/misc';
 import { isUserFreePlan } from '../../lib/payment-helper';
@@ -26,6 +27,7 @@ export default function Header({
   const { ventoUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const redirectUrl = useRedirectAuthUrl();
   const signUpRedirectUrl = useSignUpRedirectAuthUrl();
   const homeUrl = ventoUser ? '/recordings' : '/';
@@ -81,13 +83,13 @@ export default function Header({
             alt="vento logo"
             width={32}
           />
-          <Link to={homeUrl} className={styles.logo}>
+          <Link to={generateUrl(homeUrl, searchParams, false)} className={styles.logo}>
             ento
           </Link>
           {leftSlot}
-          {showPricing && isUserFreePlan(ventoUser) && (
+          {showPricing && isUserFreePlan(ventoUser) && pathname !== '/pricing' && (
             <Link
-              to="/pricing"
+              to={generateUrl('/pricing', searchParams, false)}
               className={styles.pricing}
             >
               Pricing
@@ -107,7 +109,7 @@ export default function Header({
                 if (!canRecord) {
                   return setIsModalOpen(true);
                 }
-                navigate('/record');
+                navigate(generateUrl('/record/new', searchParams, false));
               }}
             >
               Start Recording
@@ -119,14 +121,14 @@ export default function Header({
               {!ventoUser ? (
                 <div className={styles.authBtn}>
                   <Link
-                    to={redirectUrl}
+                    to={generateUrl(redirectUrl, searchParams, false)}
                     className={styles.logIn}
                     onClick={() => logClientEvent('click.header.login')}
                   >
                     Login
                   </Link>
                   <Link
-                    to={signUpRedirectUrl}
+                    to={generateUrl(signUpRedirectUrl, searchParams, false)}
                     className={styles.signUp}
                     onClick={() => logClientEvent('click.header.signup')}
                   >

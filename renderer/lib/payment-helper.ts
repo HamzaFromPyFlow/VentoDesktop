@@ -58,7 +58,7 @@ export const getMonthlyPaymentLink = (
 ) => {
   const stripeLink = `https://buy.stripe.com/${stripeMonthlyPaymentLink}`;
   if (!ventoUser) {
-    return `/auth/login?redirect_to=${encodeURIComponent(stripeLink)}`;
+    return `/login?redirect_to=${encodeURIComponent(stripeLink)}`;
   }
   const converted = convertJsonToSearchParams({
     client_reference_id: ventoUser.id,
@@ -80,7 +80,7 @@ export const getUpsellPaymentLink = (
 export const getYearlyPaymentLink = (ventoUser?: UserModel) => {
   const stripeLink = `https://buy.stripe.com/${stripeYearlyPaymentLink}`;
   if (!ventoUser) {
-    return `/auth/login?redirect_to=${encodeURIComponent(stripeLink)}`;
+    return `/login?redirect_to=${encodeURIComponent(stripeLink)}`;
   }
   const params = convertJsonToSearchParams({
     client_reference_id: ventoUser.id,
@@ -109,7 +109,7 @@ export const getLtdPaymentLink = (
       stripeLink = "https://buy.stripe.com/4gw9Bd1NI1yfb2U3cf";
   }
   if (!ventoUser) {
-    return `/auth/login?redirect_to=${encodeURIComponent(stripeLink)}`;
+    return `/login?redirect_to=${encodeURIComponent(stripeLink)}`;
   }
   const params = convertJsonToSearchParams({
     client_reference_id: ventoUser.id,

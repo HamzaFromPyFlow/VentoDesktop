@@ -1,11 +1,20 @@
 /**
  * Generate URL with UTM parameters preserved
  * For HashRouter, we use hash-based routing
+ * @param href - The path (e.g., '/pricing' or '/login') or external URL (e.g., 'https://...')
+ * @param searchParams - URLSearchParams or object with search params
+ * @param addHash - Whether to add '#' prefix (default: false for React Router Link, true for window.location)
  */
 export function generateUrl(
   href: string,
-  searchParams?: URLSearchParams | ReadonlyURLSearchParams | Record<string, any> | null
+  searchParams?: URLSearchParams | ReadonlyURLSearchParams | Record<string, any> | null,
+  addHash: boolean = false
 ): string {
+  // If it's an external URL (http/https), return as-is without processing
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    return href;
+  }
+
   const filteredParams = new URLSearchParams();
 
   // Keys that should be kept in the URL
@@ -33,11 +42,12 @@ export function generateUrl(
     });
   }
 
-  // For HashRouter, prepend with #
-  const hashHref = href.startsWith('#') ? href : `#${href}`;
+  // For HashRouter with Link components, don't add # prefix (HashRouter handles it)
+  // For window.location.href, add # prefix
+  const finalHref = addHash ? (href.startsWith('#') ? href : `#${href}`) : href;
   
   return (
-    hashHref +
+    finalHref +
     (Array.from(filteredParams).length > 0
       ? `?${decodeURIComponent(filteredParams.toString())}`
       : "")

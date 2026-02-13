@@ -1,4 +1,4 @@
-import { Modal } from "@mantine/core";
+import { Modal, Transition } from "@mantine/core";
 import Pricing from "../../../pages/pricing/Pricing";
 
 type PricingPageModalProps = {
@@ -12,31 +12,39 @@ export default function PricingPageModal({
 }: PricingPageModalProps) {
     
     return (
-        <Modal
-            opened={opened}
-            onClose={onClose}
-            centered
-            trapFocus={true}
-            size="auto"
-            overflow="outside"
-            styles={{
-                close:{
-                    svg: {
-                        width: '24px',
-                        height: '24px',
-                      },
-                }
-            }}
-            classNames={{
-                root: "modalRoot",
-                modal: "modalContent",
-                body: "modalBody",
-                header: "modalHeader",
-            }} 
+        <Transition
+            mounted={opened}
+            transition="slide-up"
+            duration={500}
+            timingFunction="ease"
         >
-            <div style={{ padding: '20px' }}>
-                <Pricing />
-            </div>
-        </Modal>
+            {(transitionStyles) => (
+            <Modal
+                opened={opened}
+                onClose={onClose}
+                centered
+                trapFocus={true}
+                size="auto"
+                overflow="outside"
+                style={transitionStyles}
+                styles={{
+                    close:{
+                        svg: {
+                            width: '24px',
+                            height: '24px',
+                          },
+                    }
+                }}
+                classNames={{
+                    root: "modalRoot",
+                    modal: "modalContent",
+                    body: "modalBody",
+                    header: "modalHeader",
+                }} 
+            >
+                <Pricing hideHeader={true}/>
+            </Modal>
+            )}
+        </Transition>
       );
 }
