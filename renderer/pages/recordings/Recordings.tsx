@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Loader, Progress, TextInput } from '@mantine/core';
 import { HiOutlineFolder } from 'react-icons/hi';
 import { MdOutlineArchive } from 'react-icons/md';
+import { IoDiamondOutline } from 'react-icons/io5';
 import Header from '../../components/common/Header';
 import { generateUrl } from '../../lib/utils';
 import styles from '../../styles/modules/RecordingsPage.module.scss';
@@ -12,12 +13,14 @@ import DeleteFolderModal from '../../components/overlays/modals/DeleteFolderModa
 import ShareFolderModal from '../../components/overlays/modals/ShareFolderModal';
 import SharedFolderModal from '../../components/overlays/modals/SharedFolderModal';
 import UploadNewVideoModal from '../../components/overlays/modals/UploadNewVideoModal';
+import PricingPageModal from '../../components/overlays/modals/PricingPageModal';
 import InviteUsersButton from '../../components/invite-users/InviteUsersButton';
 import FolderItemDropdown from '../../components/dropdowns/FolderItemDropdown';
 import { useAuth } from '../../stores/authStore';
 import webAPI from '../../lib/webapi';
 import { useInView } from '../../lib/hooks';
-import { convertToRecordingModalItem, isUserFreePlan, logClientEvent } from '../../lib/misc';
+import { convertToRecordingModalItem, logClientEvent } from '../../lib/misc';
+import { isUserFreePlan } from '../../lib/payment-helper';
 import type { RecordingModalItem } from '../../lib/misc';
 
 const freeRecordingLimit = 10;
@@ -343,6 +346,18 @@ export default function RecordingsPage() {
                 value={(recordingNo / freeRecordingLimit) * 100}
               />
             </div>
+            <button
+              onClick={() => {
+                setModalStates({ pricingPageModal: true });
+                logClientEvent("click.pricing.yourRecordings");
+              }}
+              className={styles.pricingPill}
+            >
+              <p>
+                <u>Upgrade</u> to get unlimited hosted videos&nbsp;
+                <IoDiamondOutline className={styles.diamondIcon} style={{ verticalAlign: 'middle' }} />
+              </p>
+            </button>
           </div>
         )}
 
@@ -873,6 +888,10 @@ export default function RecordingsPage() {
       <UploadNewVideoModal
         opened={modalStates.uploadNewVideoModal}
         onClose={() => setModalStates({ uploadNewVideoModal: false })}
+      />
+      <PricingPageModal
+        opened={modalStates.pricingPageModal}
+        onClose={() => setModalStates({ pricingPageModal: false })}
       />
       </main>
     </>

@@ -38,6 +38,8 @@
       @include flex;
       align-items: center;
       gap: 1rem;
+      flex-wrap: nowrap;
+      white-space: nowrap;
 
       .progressContainer {
         @include flex(column);
@@ -53,6 +55,7 @@
         @include btn-base;
         font-size: 0.75rem;
         background-color: $orange-500;
+        white-space: nowrap;
 
         @include sm {
           font-size: 1rem;
@@ -60,6 +63,14 @@
 
         @include flex-center;
         gap: 0.25rem;
+
+        p {
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          margin: 0;
+        }
       }
       .diamondIcon {
         font-size: 15px;
