@@ -459,6 +459,7 @@ export default function ViewRecording() {
                   folders={folders.filter(
                     (folder) => folder.id !== recording.folders?.[0]?.id
                   )}
+                  position="bottom"
                   allowEdit={convertToRecordingModalItem(recording, ventoUser).isEditable}
                   onDeleteConfirm={async () => {
                     await webAPI.recording.recordingDeleteRecording(recording.id);
