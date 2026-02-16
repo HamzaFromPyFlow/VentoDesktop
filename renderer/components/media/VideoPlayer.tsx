@@ -19,7 +19,7 @@ type VideoPlayerProps = HTMLAttributes<HTMLVideoElement> & {
 };
 
 // Desktop/Electron: same MSE-based streaming helper as web version
-function setupMSE(source: string, videoEl: HTMLVideoElement) {
+function setupMSE(source: string, _videoEl: HTMLVideoElement) {
   const mediaSource = new MediaSource();
   let duration = 0;
 
@@ -122,9 +122,16 @@ const VideoPlayer = ({
 
       videoElement.classList.add(
         "vjs-big-play-centered",
-        "vento-player",
-        ...className.split(" ")
+        "vento-player"
       );
+      
+      // Add custom className classes, filtering out empty strings
+      if (className) {
+        const classes = className.split(" ").filter(cls => cls.trim() !== "");
+        if (classes.length > 0) {
+          videoElement.classList.add(...classes);
+        }
+      }
 
       videoRef.current.parentElement!.insertBefore(
         videoElement,
@@ -156,6 +163,17 @@ const VideoPlayer = ({
             const url = setupMSE(source, videoEl);
             videoEl!.src = url;
           }
+
+          // Initialize AnnotationPopup after player is ready and DOM is available
+          setTimeout(() => {
+            try {
+              if (!popupRef.current) {
+                popupRef.current = new AnnotationPopup(player);
+              }
+            } catch (error) {
+              console.warn("Failed to initialize AnnotationPopup:", error);
+            }
+          }, 0);
         }
       ));
 
@@ -175,10 +193,13 @@ const VideoPlayer = ({
         parseFloat(localStorage.getItem("playbackRate") ?? "1")
       );
 
-      player.preload(true);
+      player.preload("auto");
 
       player.on("ratechange", () => {
-        localStorage.setItem("playbackRate", player.playbackRate().toString());
+        const rate = player.playbackRate();
+        if (rate !== undefined) {
+          localStorage.setItem("playbackRate", rate.toString());
+        }
       });
 
       modalRef.current = new EndVideoModal(player, {
@@ -186,7 +207,8 @@ const VideoPlayer = ({
       });
       onEndModalReady?.(modalRef.current);
 
-      popupRef.current = new AnnotationPopup(player);
+      // AnnotationPopup will be initialized in the player ready callback
+      // to ensure DOM elements are available
 
       captionButtonRef.current = new CaptionButton(player, {
         kind: "captions",

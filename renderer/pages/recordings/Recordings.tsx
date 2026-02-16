@@ -160,6 +160,14 @@ export default function RecordingsPage() {
         setUserArchivedFolders(archivedFolders);
         setTotalRecordings(total);
         setTotalArchivedRecordings(totalArchivedRecordings);
+
+        // Sync recordingNo with actual count of completed non-archived recordings
+        if (isUserFreePlan(ventoUser)) {
+          const completedRecordingsCount = convertedRecordings.filter(
+            (recording) => recording.encodingStatus === 'DONE' && !recording.isArchived
+          ).length;
+          setRecordingNo(completedRecordingsCount);
+        }
       } catch (error) {
         console.error('Error fetching recordings:', error);
       } finally {
@@ -306,6 +314,18 @@ export default function RecordingsPage() {
   const folders = showArchived ? userArchivedFolders : userFolders;
   const total = showArchived ? totalArchivedRecordings : totalRecordings;
   const shouldRenderLoader = total > recordings.length && recordingNo > 25;
+
+  // Sync recordingNo whenever recordings change (e.g., when a recording finishes processing)
+  useEffect(() => {
+    if (isUserFreePlan(ventoUser) && !showArchived) {
+      const completedRecordingsCount = userRecordings.filter(
+        (recording) => recording.encodingStatus === 'DONE' && !recording.isArchived
+      ).length;
+      if (completedRecordingsCount !== recordingNo) {
+        setRecordingNo(completedRecordingsCount);
+      }
+    }
+  }, [userRecordings, ventoUser, showArchived, recordingNo, setRecordingNo]);
 
   const setRecordings = (updatedRecordings: RecordingModalItem[]) => {
     if (showArchived) {

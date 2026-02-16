@@ -1,4 +1,4 @@
-import type { RecordingModel } from "@schema/index";
+import { RecordingModel } from "@schema/index";
 import webAPI from "./webapi";
 
 export function isBrowser() {
@@ -163,27 +163,37 @@ export function obscureFormatEmail(email: string): string {
  * This function should be used to whenever we're generating a URL for a tags.
  * It ensures that utm parameters are always added to the URL.
  * @param href
+ * @param searchParams - URLSearchParams or Record<string, any>
  * @returns
  */
 export function generateUrl(
   href: string,
-  searchParams?: Record<string, any> | null
+  searchParams?: URLSearchParams | Record<string, any> | null
 ) {
   const filteredParams = new URLSearchParams();
 
   // Keys that should be kept in the URL.
   const flaggedKeys = ["utm_", "referrer", "source"];
 
-  // If searchParams.forEach is defined, it is a ReadonlyUrlSearchParams object.
-  if (searchParams?.forEach) {
-    searchParams?.forEach((value: any, key: string) => {
-      if (flaggedKeys.find((k) => key.includes(k)))
-        filteredParams.append(key, value.toString());
-    });
-  } else {
-    Object.entries(searchParams || {}).forEach(([key, value]) => {
-      if (flaggedKeys.find((k) => key.includes(k)))
-        filteredParams.append(key, value.toString());
+  // If searchParams.forEach is defined, it is a URLSearchParams object (or ReadonlyURLSearchParams)
+  if (searchParams && typeof searchParams.forEach === 'function') {
+    try {
+      searchParams.forEach((value: any, key: any) => {
+        // Ensure key is a string before calling includes
+        const keyStr = String(key);
+        if (flaggedKeys.some((k) => keyStr.includes(k))) {
+          filteredParams.append(keyStr, String(value));
+        }
+      });
+    } catch (err) {
+      console.warn('[generateUrl] Error iterating searchParams:', err);
+    }
+  } else if (searchParams && typeof searchParams === 'object') {
+    // Handle plain object
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (flaggedKeys.some((k) => key.includes(k))) {
+        filteredParams.append(key, String(value));
+      }
     });
   }
 

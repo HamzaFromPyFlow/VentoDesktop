@@ -7,11 +7,25 @@ class AnnotationPopup extends Component {
   constructor(player, options) {
     super(player, options);
 
+    // Wait for the DOM element to be available
     const overlay = document.querySelector(".annotation-popup-content");
+    if (!overlay) {
+      console.warn("AnnotationPopup: .annotation-popup-content not found, skipping initialization");
+      this.modal = null;
+      return;
+    }
+
     const closeBtn = overlay.querySelector("button");
+    if (!closeBtn) {
+      console.warn("AnnotationPopup: close button not found, skipping initialization");
+      this.modal = null;
+      return;
+    }
 
     closeBtn.addEventListener("click", () => {
-      this.modal.close();
+      if (this.modal) {
+        this.modal.close();
+      }
     });
 
     this.modal = new ModalDialog(player, {
@@ -23,12 +37,15 @@ class AnnotationPopup extends Component {
     this.modal.addClass("annotation-popup");
     player.addChild(this.modal);
 
-    document
-      .querySelector(".annotation-popup .vjs-modal-dialog-content")
-      .appendChild(overlay);
+    const modalContent = document.querySelector(".annotation-popup .vjs-modal-dialog-content");
+    if (modalContent) {
+      modalContent.appendChild(overlay);
+    }
   }
 
   toggle(enable) {
+    if (!this.modal) return;
+    
     if (enable) this.modal.open();
     else this.modal.close();
 

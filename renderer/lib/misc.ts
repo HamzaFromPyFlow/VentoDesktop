@@ -84,3 +84,28 @@ export const errorHandler = (handler: (...args: any[]) => void) => {
     }
   };
 };
+
+/**
+ * Copy link to clipboard and show notification
+ */
+export async function onCopyLink(hrefToCopy: string) {
+  // For Electron/desktop, use the current window location
+  const url = new URL(hrefToCopy, window.location.href);
+  if (!url.searchParams.has("utm_medium")) {
+    url.searchParams.append("utm_medium", "share");
+  }
+
+  await navigator.clipboard.writeText(url.toString());
+
+  // Import showNotification dynamically to avoid circular dependencies
+  const { showNotification } = await import("@mantine/notifications");
+  const { BiLink } = await import("react-icons/bi");
+  
+  showNotification({
+    message: "Link copied to clipboard!",
+    icon: BiLink({ color: "white" }),
+    autoClose: 2000,
+  });
+
+  logClientEvent("click.copy.link");
+}

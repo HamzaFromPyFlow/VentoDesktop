@@ -7,7 +7,7 @@
  */
 export function generateUrl(
   href: string,
-  searchParams?: URLSearchParams | ReadonlyURLSearchParams | Record<string, any> | null,
+  searchParams?: URLSearchParams | Record<string, any> | null,
   addHash: boolean = false
 ): string {
   // If it's an external URL (http/https), return as-is without processing
@@ -20,7 +20,7 @@ export function generateUrl(
   // Keys that should be kept in the URL
   const flaggedKeys = ["utm_", "referrer", "source"];
 
-  // If searchParams.forEach is defined, it is a URLSearchParams or ReadonlyURLSearchParams object
+  // If searchParams.forEach is defined, it is a URLSearchParams object (or ReadonlyURLSearchParams)
   if (searchParams && typeof searchParams.forEach === 'function') {
     try {
       searchParams.forEach((value: any, key: any) => {
@@ -120,4 +120,33 @@ export function debounce<T extends (...args: any[]) => any>(
     }
     timeout = setTimeout(later, wait);
   };
+}
+
+/**
+ * Simple throttle function
+ */
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): T {
+  let timeout: NodeJS.Timeout | null = null;
+  let previous = 0;
+  return ((...args: Parameters<T>) => {
+    const now = Date.now();
+    const remaining = wait - (now - previous);
+    if (remaining <= 0 || remaining > wait) {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      previous = now;
+      func(...args);
+    } else if (!timeout) {
+      timeout = setTimeout(() => {
+        previous = Date.now();
+        timeout = null;
+        func(...args);
+      }, remaining);
+    }
+  }) as T;
 }

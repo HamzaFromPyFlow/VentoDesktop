@@ -74,25 +74,146 @@ export default function RecordingItem({
   const imageSource = getImageSrc(recording);
   
   // For Electron/HashRouter, use Link component instead of anchor tag
-  const RecordingLink = ({ children, ...props }: any) => {
-    if (isCheckboxMode) {
-      return <div {...props}>{children}</div>;
+  // Match web version: use <a> tag with href for navigation, but prevent default in checkbox mode
+  const handleClick = (e: React.MouseEvent) => {
+    if (isCheckboxMode && onClick) {
+      e.preventDefault();
+      onClick(e);
     }
-    return <Link to={`/view/${recording.id}`} {...props}>{children}</Link>;
+    // Otherwise, let Link handle navigation naturally
   };
 
+  if (isCheckboxMode) {
+    return (
+      <div
+        key={recording.id}
+        className={`${styles.recordingItem} ${!hideActions ? styles.multiSelect : ''}`}
+        onClick={handleClick}
+      >
+      <picture className={`${styles.picture} ${isSelected && !hideActions ? styles.selected : ''} ${isCheckboxMode && !hideActions ? styles.checkboxMode : ''}`}>
+        <source srcSet={imageSource} type="image/webp" />
+        <img
+          src={imageSource.replace(".webp", ".jpeg")}
+          alt={`Thumbnail for recording of ${recording.title}`}
+          loading="lazy"
+          className={`${styles.thumbnail} ${!hideActions ? styles.multiSelect : ''} ${isCheckboxMode && !hideActions ? styles.checkboxMode : ''}`}
+        />
+        {!hideActions && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            style={isCheckboxMode ? { pointerEvents: 'none' } : undefined}
+            onChange={(e) => {
+              onCheckboxChange(e.target.checked);
+            }}
+            className={styles.checkbox}
+            aria-label={`Select ${recording.title}`}
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+        {!!recording.videoDuration && recording.videoDuration !== "0.00" && (
+          <span className={styles.timestamp}>
+            {formatVideoDurationMinutes(parseFloat(recording.videoDuration ?? '0'))}
+          </span>
+        )}
+      </picture>
+
+      <div className={styles.data}>
+        <div>
+          <span className={styles.title}>{recording.title}</span>
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            {!hideActions && !isCheckboxMode && (
+              <RecordingItemDropdown
+                recording={recording}
+                allowEdit={recording.isEditable}
+                folders={folders}
+                onDeleteConfirm={onDeleteConfirm}
+                onArchiveConfirm={onArchiveConfirm}
+                onMoveConfirm={onMoveConfirm}
+                onUpdatePassword={onUpdatePassword}
+                onUpdateTitle={onUpdateTitle}
+                onTurnOffAutoArchiveConfirm={onTurnOffAutoArchiveConfirm}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                  className={styles.menuBtn}
+                >
+                  <BsThreeDots size={15} />
+                </button>
+              </RecordingItemDropdown>
+            )}
+          </div>
+        </div>
+        <div>
+          <span className={styles.timeStr}>{recording.recordingTimeStr || 'Recently'}</span>
+          {!hideActions && (
+            <span className={styles.viewCount}>
+              {recording.autoArchiveDisabled && (
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '31px',
+                    height: '32px',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '8px', color: 'black' }}>Auto</p>
+                    <MdOutlineArchive size={16} />
+                  </div>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '0',
+                      left: '0',
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      border: '2px solid gray',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '0',
+                      width: '100%',
+                      height: '2px',
+                      backgroundColor: 'gray',
+                      transform: 'rotate(38deg) translateY(-50%)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </div>
+              )}
+              <GrFormView size={22.5} />
+              {viewCount !== undefined ? viewCount : <Skeleton height={10} width={20} radius="xl" />}
+            </span>
+          )}
+        </div>
+      </div>
+      </div>
+    );
+  }
+
+  // Normal mode: use Link for navigation
   return (
-    <RecordingLink
+    <Link
       key={recording.id}
+      to={`/view/${recording.id}`}
       className={`${styles.recordingItem} ${!hideActions ? styles.multiSelect : ''}`}
-      onClick={
-        isCheckboxMode && onClick
-          ? (e: React.MouseEvent) => {
-              e.preventDefault();
-              onClick(e);
-            }
-          : undefined
-      }
+      onClick={handleClick}
     >
       <picture className={`${styles.picture} ${isSelected && !hideActions ? styles.selected : ''} ${isCheckboxMode && !hideActions ? styles.checkboxMode : ''}`}>
         <source srcSet={imageSource} type="image/webp" />
@@ -207,6 +328,6 @@ export default function RecordingItem({
           )}
         </div>
       </div>
-    </RecordingLink>
+    </Link>
   );
 }
