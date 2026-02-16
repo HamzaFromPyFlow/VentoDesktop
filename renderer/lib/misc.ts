@@ -62,3 +62,25 @@ export function logClientEvent(name: string, data?: any) {
   console.log('[event]', name, data ?? {});
 }
 
+/**
+ * Stop all tracks in a MediaStream
+ * @param mediaStream
+ */
+export function stopAllTracks(mediaStream: MediaStream) {
+  mediaStream.getTracks().forEach((track) => track.stop());
+}
+
+export const errorHandler = (handler: (...args: any[]) => void) => {
+  const handleError = (err: any) => {
+    console.error("Error", err);
+  };
+
+  return (...args: any[]) => {
+    try {
+      handler(...args);
+    } catch (e) {
+      // sync handler
+      handleError(e);
+    }
+  };
+};

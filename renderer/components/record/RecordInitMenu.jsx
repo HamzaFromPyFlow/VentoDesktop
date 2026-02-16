@@ -1,26 +1,30 @@
 import React, { useState } from 'react';
 import { Loader } from '@mantine/core';
 import { CgRecord } from 'react-icons/cg';
+import { showNotification } from '@mantine/notifications';
 import { useRecordStore } from '../../stores/recordStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useAuth } from '../../stores/authStore';
+import { isUserFreePlan } from '@lib/payment-helper';
+import webAPI from '@lib/webapi';
 import InputSettings from './InputSettings';
 import CameraOnlyRecordingToolbar from './CameraOnlyRecordingToolbar';
 import Toolbar from './Toolbar';
 import RecordPreview from './RecordPreview';
 
 // Desktop clone of the vento premium record-init-menu component.
-// This matches the structure and behavior of the original, but simplified
-// for desktop (no network checks, payments, or real recording yet).
+// This matches the structure and behavior of the original.
 
 function RecordInitMenu() {
-  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder, finalVideoUrl } =
+  const { ventoUser, setVentoUser, setRecordingNo, recordingNo } = useAuth();
+  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder, startRecording } =
     useRecordStore((state) => ({
       recordingState: state.recordingState,
       setRecordingState: state.setRecordingState,
       lastDisplayType: state.lastDisplayType,
       setLastDisplayType: state.setLastDisplayType,
       mediaRecorder: state.mediaRecorder,
-      finalVideoUrl: state.finalVideoUrl,
+      startRecording: state.startRecording,
     }));
 
   const { mode, selectedVideoInputId } = useSettingsStore((state) => ({
@@ -29,27 +33,154 @@ function RecordInitMenu() {
   }));
 
   const [preparing, setPreparing] = useState(false);
+  const hideScreenNotification = Boolean(localStorage.getItem('hideScreenNotification'));
 
   // If user is recording camera only
   const isCameraRecording = recordingState === 'recording-cam';
 
+  // Debug: Log recording state changes
+  React.useEffect(() => {
+    console.log('[RecordInitMenu] Recording state changed:', recordingState, 'isCameraRecording:', isCameraRecording);
+  }, [recordingState, isCameraRecording]);
+
   /**
    * Before we allow user to start recording, we need to check if user has reached their recording limit.
-   * Simplified version for desktop - just starts recording without API checks.
+   * Matches web version's startRecord function.
    */
   async function startRecord() {
-    setPreparing(true);
+    console.log('[RecordInitMenu] startRecord called', { mode, selectedVideoInputId, ventoUser: !!ventoUser });
     setLastDisplayType('monitor');
     
     // Check if camera mode but no video source selected
     if (mode === 'camera' && selectedVideoInputId === 'none') {
-      console.warn('Camera mode selected but no video source');
-      setPreparing(false);
+      showNotification({
+        title: 'Video Source Required',
+        message: 'Please select at least one video source in the settings menu.',
+        color: 'orange',
+        autoClose: true,
+      });
       return;
     }
+    
+    try {
+    
+    // Check for screencam mode notification
+    if (mode === 'screencam' && !hideScreenNotification) {
+      // TODO: Show camera screen notification modal
+      // For now, just proceed
+    }
 
-    await useRecordStore.getState().startRecording();
-    setPreparing(false);
+    if (!ventoUser) {
+      // Anonymous user - capture fingerprint if available
+      try {
+        // Simplified fingerprint capture for desktop
+        // In web version, this uses @fingerprintjs/fingerprintjs-pro-react
+        // For desktop, we'll use a simple fallback or skip if library not available
+        const fingerPrint = localStorage.getItem('fingerPrint') || `desktop-${Date.now()}-${Math.random()}`;
+        localStorage.setItem('fingerPrint', fingerPrint);
+        
+        // Check if fingerprint already has recording
+        const isFingerPrintAlreadyExists = await webAPI.fingerPrint
+          .fingerPrintFingerprintHasRecording(fingerPrint)
+          .catch(() => false);
+          
+        if (isFingerPrintAlreadyExists) {
+          // TODO: Show anonymous limit reached modal
+          showNotification({
+            title: 'Recording Limit Reached',
+            message: 'You have reached the limit for anonymous recordings. Please sign up to continue.',
+            color: 'orange',
+            autoClose: false,
+          });
+          return;
+        }
+      } catch (err) {
+        console.error('Fingerprint capture failed for anonymous user:', err);
+        showNotification({
+          title: 'Recording Blocked',
+          message: 'Please disable ad blockers or privacy extensions, or sign up for a free account to record.',
+          color: 'red',
+          autoClose: false,
+        });
+        return;
+      }
+      
+      console.log('[RecordInitMenu] Starting recording for anonymous user');
+      await startRecording();
+      console.log('[RecordInitMenu] Recording started successfully');
+    } else {
+      // Logged-in users: Capture fingerprint for tracking (not authentication)
+      try {
+        const fingerPrint = localStorage.getItem('fingerPrint') || `desktop-${Date.now()}-${Math.random()}`;
+        localStorage.setItem('fingerPrint', fingerPrint);
+      } catch (err) {
+        console.warn('Fingerprint capture failed for logged-in user:', err);
+      }
+
+      console.log('[RecordInitMenu] Fetching user data...');
+      const userRes = await webAPI.user.userGetUserByTokenWithRecordingNo().catch((err) => {
+        console.error('[RecordInitMenu] Error fetching user:', err);
+        return null;
+      });
+
+      if (!userRes) {
+        console.error('[RecordInitMenu] No user response, aborting');
+        showNotification({
+          title: 'Error',
+          message: 'Failed to fetch user data. Please try again.',
+          color: 'red',
+          autoClose: true,
+        });
+        return;
+      }
+
+      const user = userRes.user;
+      setVentoUser(user);
+      console.log('[RecordInitMenu] User data fetched:', { userId: user.id, recordingNo: userRes.recordingNo });
+
+      // Check for user's recording limit
+      if (isUserFreePlan(user)) {
+        if (userRes.recordingNo >= 10) {
+          // TODO: Show upgrade modal
+          showNotification({
+            title: 'Recording Limit Reached',
+            message: 'You have reached your free recording limit. Please upgrade to continue.',
+            color: 'orange',
+            autoClose: false,
+          });
+          return;
+        } else {
+          if (userRes.recordingNo >= 5) {
+            const upsellAnalytics = user
+              ? await webAPI.analytic.analyticModalUpsells(user.id).catch(() => null)
+              : null;
+            if (!upsellAnalytics?.ignorePremiumOfferCount) {
+              // TODO: Show upgrade modal
+              showNotification({
+                title: 'Upgrade Available',
+                message: 'You are approaching your free recording limit. Consider upgrading for unlimited recordings.',
+                color: 'yellow',
+                autoClose: 5000,
+              });
+              // Continue recording but show notification
+            }
+          }
+        }
+      }
+
+      console.log('[RecordInitMenu] Starting recording for logged-in user');
+      await startRecording();
+      console.log('[RecordInitMenu] Recording started successfully');
+    }
+    } catch (error) {
+      console.error('[RecordInitMenu] Error in startRecord:', error);
+      showNotification({
+        title: 'Recording Error',
+        message: error.message || 'An error occurred while starting the recording. Please try again.',
+        color: 'red',
+        autoClose: false,
+      });
+    }
   }
 
   /**

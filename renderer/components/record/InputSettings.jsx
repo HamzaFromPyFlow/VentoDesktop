@@ -24,8 +24,9 @@ export default function InputSettings({ children, onResolutionClick }) {
     })
   );
 
-  const { recordingState } = useRecordStore((state) => ({
+  const { recordingState, webcamStream: recordStoreWebcamStream } = useRecordStore((state) => ({
     recordingState: state.recordingState,
+    webcamStream: state.webcamStream,
   }));
 
   const isCameraRecording = recordingState === 'recording-cam';
@@ -173,24 +174,27 @@ export default function InputSettings({ children, onResolutionClick }) {
     }
   }, [cameraStream]);
 
-  // Reattach stream when mode changes (to ensure video elements have the stream)
+  // Reattach stream when mode changes or recording starts (to ensure video elements have the stream)
   useEffect(() => {
-    if (cameraStream && streamRef.current) {
+    // During recording, use the stream from recordStore; otherwise use local cameraStream
+    const activeStream = isCameraRecording && recordStoreWebcamStream ? recordStoreWebcamStream : cameraStream;
+    
+    if (activeStream && streamRef.current) {
       // Ensure the appropriate video element has the stream based on current mode
       if (mode === 'camera' && cameraVideoRef.current) {
-        if (cameraVideoRef.current.srcObject !== cameraStream) {
-          cameraVideoRef.current.srcObject = cameraStream;
+        if (cameraVideoRef.current.srcObject !== activeStream) {
+          cameraVideoRef.current.srcObject = activeStream;
           cameraVideoRef.current.play().catch(err => console.error('Error playing camera video:', err));
         }
       }
       if (mode === 'screencam' && screencamVideoRef.current) {
-        if (screencamVideoRef.current.srcObject !== cameraStream) {
-          screencamVideoRef.current.srcObject = cameraStream;
+        if (screencamVideoRef.current.srcObject !== activeStream) {
+          screencamVideoRef.current.srcObject = activeStream;
           screencamVideoRef.current.play().catch(err => console.error('Error playing screencam video:', err));
         }
       }
     }
-  }, [mode, cameraStream]);
+  }, [mode, cameraStream, isCameraRecording, recordStoreWebcamStream]);
 
   // Initial camera access request and device enumeration
   useEffect(() => {
@@ -408,9 +412,9 @@ export default function InputSettings({ children, onResolutionClick }) {
             playsInline
             muted
             className="w-full h-full object-cover"
-            style={{ display: cameraStream ? 'block' : 'none' }}
+            style={{ display: (isCameraRecording && recordStoreWebcamStream) || cameraStream ? 'block' : 'none' }}
           />
-          {!cameraStream && (
+          {!cameraStream && !recordStoreWebcamStream && (
             <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-gray-500 text-xs">
               Camera Preview
             </div>

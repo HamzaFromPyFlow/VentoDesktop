@@ -65,7 +65,7 @@ export default function RecordingsSearchBar() {
       {isSearchBarActive && <div className={styles.overlay}></div>}
       <div className={styles.searchContainer} ref={searchContainerRef}>
         <TextInput
-          leftSection={<IoSearchSharp size={20} />}
+          icon={<IoSearchSharp size={20} />}
           ref={searchInputRef}
           w="90%"
           size="md"
