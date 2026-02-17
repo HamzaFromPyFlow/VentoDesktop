@@ -75,7 +75,6 @@ function EditorPage() {
   const { ventoUser } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<any>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
   const [buffering, setBuffering] = useState(false);
   
   const [currentVideoDuration, setCurrentVideoDuration] = useState(0);
@@ -202,104 +201,89 @@ function EditorPage() {
   }, [recordingId]);
 
   /**
-   * Initialize/replace Video.js on a dedicated container and load source.
-   * This matches the web version's implementation.
+   * Video.js on a static ref: React owns the <video> node, Video.js borrows it.
+   * Prevents Exit Code 11 by avoiding DOM swap race with React reconciliation.
    */
   useEffect(() => {
-    const container = playerContainerRef.current;
+    const videoElement = videoRef.current;
     const videoUrl = currentRecording?.videoUrl || finalVideoUrl;
-    if (!videoUrl || !container) return;
 
-    // Dispose existing player and clear container
-    const existingPlayer = playerRef.current;
-    if (existingPlayer && typeof existingPlayer.dispose === "function") {
-      existingPlayer.dispose();
-    }
-    playerRef.current = null;
-    if (container) {
-      container.innerHTML = "";
-    }
+    if (!videoUrl || !videoElement) return;
 
-    // Create a video element not managed by React
-    const el = document.createElement("video");
-    el.className = "video-js vjs-default-skin";
-    el.setAttribute("playsinline", "true");
-    if (container) {
-      container.appendChild(el);
-    }
+    let isDisposed = false;
 
-    // Initialize Video.js
-    const player = videojs(el, {
-      controls: false,
-      bigPlayButton: false,
-      controlBar: false,
-      userActions: { hotkeys: false },
-      preload: "auto",
-      fluid: false,
-      fill: false,
-    });
-    playerRef.current = player;
+    const init = () => {
+      if (isDisposed) return;
 
-    // Expose underlying tech element for other logic
-    const techVideo = (player.el().getElementsByTagName("video")[0] as HTMLVideoElement) || el;
-    videoRef.current = techVideo;
-    useEditorStore.setState({ videoElement: techVideo });
-
-    // Set source
-    const type = videoUrl.endsWith(".mp4") ? "video/mp4" : "application/x-mpegURL";
-    if (typeof player.pause === "function") {
-      player.pause();
-    }
-    player.src({ src: videoUrl, type });
-    if (typeof player.load === "function") {
-      player.load();
-    }
-
-    // Buffering indicators
-    const setBufTrue = () => setBuffering(true);
-    const setBufFalse = () => setBuffering(false);
-    player.on("waiting", setBufTrue);
-    player.on("canplay", setBufFalse);
-    player.on("playing", setBufFalse);
-    player.on("loadeddata", setBufFalse);
-    player.on("error", setBufFalse);
-
-    // Duration updates
-    player.on("durationchange", () => {
-      const durationSec = player.duration();
-      if (typeof durationSec === "number" && !isNaN(durationSec)) {
-        const totalVideoDuration = durationSec * 1000;
-        useEditorStore.setState({ totalVideoDuration });
-
-        // Set the current recording time to the max recording time minus the video duration
-        // This matches the web version's Editor component (line 1044-1048)
-        useRecordStore.setState({
-          currentRecordingTime:
-            useRecordStore.getState().maxRecordingTime - totalVideoDuration,
-          elapsedRecordingTime: totalVideoDuration,
-        });
+      if (playerRef.current) {
+        try {
+          playerRef.current.dispose();
+        } catch (_) {
+          /* ignore */
+        }
       }
-    });
 
-    // Cleanup function
+      const player = videojs(videoElement, {
+        controls: false,
+        bigPlayButton: false,
+        controlBar: false,
+        userActions: { hotkeys: false },
+        autoplay: false,
+        preload: "auto",
+        fluid: false,
+        fill: true,
+        responsive: true,
+      }, () => {
+        if (isDisposed) return;
+
+        const type = videoUrl.endsWith(".mp4") ? "video/mp4" : "application/x-mpegURL";
+        const safeUrl =
+          videoUrl.startsWith("/") && !videoUrl.startsWith("http")
+            ? `file://${videoUrl}`
+            : videoUrl;
+        player.src({ src: safeUrl, type });
+
+        useEditorStore.setState({ videoElement: videoElement });
+      });
+
+      playerRef.current = player;
+
+      player.on("durationchange", () => {
+        const durationSec = player.duration();
+        if (typeof durationSec === "number" && !isNaN(durationSec)) {
+          const totalMs = durationSec * 1000;
+          useEditorStore.setState({ totalVideoDuration: totalMs });
+          useRecordStore.setState({
+            currentRecordingTime: useRecordStore.getState().maxRecordingTime - totalMs,
+            elapsedRecordingTime: totalMs,
+          });
+        }
+      });
+
+      player.on("waiting", () => setBuffering(true));
+      player.on("playing", () => setBuffering(false));
+      player.on("error", () => {
+        setBuffering(false);
+        console.error("Video.js Error:", player.error());
+      });
+    };
+
+    const timeoutId = setTimeout(init, 100);
+
     return () => {
-      const cleanupPlayer = playerRef.current;
-      if (cleanupPlayer && typeof cleanupPlayer.off === "function") {
-        cleanupPlayer.off("waiting", setBufTrue);
-        cleanupPlayer.off("canplay", setBufFalse);
-        cleanupPlayer.off("playing", setBufFalse);
-        cleanupPlayer.off("loadeddata", setBufFalse);
-        cleanupPlayer.off("error", setBufFalse);
-      }
-      if (cleanupPlayer && typeof cleanupPlayer.dispose === "function") {
-        cleanupPlayer.dispose();
-      }
-      playerRef.current = null;
-      if (container) {
-        container.innerHTML = "";
+      isDisposed = true;
+      clearTimeout(timeoutId);
+      if (playerRef.current) {
+        const p = playerRef.current;
+        playerRef.current = null;
+        try {
+          p.dispose();
+        } catch (e) {
+          console.warn("Video.js dispose error:", e);
+        }
       }
     };
-  }, [currentRecording, finalVideoUrl]);
+  }, [currentRecording?.videoUrl, finalVideoUrl]);
 
   // Handle current time update from Timeline
   const handleCurrentTimeUpdate = useCallback((durationInMs: number) => {
@@ -749,7 +733,13 @@ function EditorPage() {
                   {blurMode && videoRef.current && (
                     <BlurRegionSelector videoRef={videoRef} blurMode={blurMode} />
                   )}
-                  <div ref={playerContainerRef} style={{ width: "100%", height: "100%" }} />
+                  <div className="video-js-wrapper" style={{ width: "100%", height: "100%" }}>
+                    <video
+                      ref={videoRef}
+                      className="video-js vjs-default-skin"
+                      playsInline
+                    />
+                  </div>
                   {buffering && (
                     <Loader className={styles.bufferingLoader} color="green" />
                   )}
