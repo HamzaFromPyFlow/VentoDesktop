@@ -6,8 +6,8 @@ $view-recording-max-width: 76rem;
 .main {
   @include flex(column);
   gap: 0rem;
-  padding: 1rem $padding-x;
-  margin: 0rem 3rem 3rem 3rem;
+  margin: 0 auto;
+  padding: 0rem 4rem 4rem 4rem;
 
   max-width: $view-recording-max-width;
 

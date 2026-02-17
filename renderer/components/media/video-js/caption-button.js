@@ -67,7 +67,10 @@ class CaptionButton extends Component {
 
     if (!this.options.src) {
       this.captionButton.addClass("vjs-hidden");
-      this.toggleCaption(false);
+      // Don't call toggleCaption when hiding - it will log an error unnecessarily
+      // Just ensure the button is disabled
+      this.captionButton.addClass("vjs-disabled");
+      this.captionButton.removeClass("vjs-active");
     } else {
       this.captionButton.removeClass("vjs-hidden");
       this.toggleCaption(true);

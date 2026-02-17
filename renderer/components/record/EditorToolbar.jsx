@@ -1,13 +1,15 @@
 import { useState, useReducer } from 'react';
-import { Tooltip, Modal, Loader } from '@mantine/core';
+import { Tooltip, Modal, Loader, Popover } from '@mantine/core';
 import { BsFillPlayFill } from 'react-icons/bs';
 import { IoIosPause } from 'react-icons/io';
-import { BiGridHorizontal } from 'react-icons/bi';
-import { TbBlur } from 'react-icons/tb';
-import { MdDone } from 'react-icons/md';
+import { MdDone, MdFiberManualRecord } from 'react-icons/md';
 import { FaUndo } from 'react-icons/fa';
 import { VscTrash } from 'react-icons/vsc';
+import { IoSettingsOutline } from 'react-icons/io5';
+import { RiTimerLine } from 'react-icons/ri';
 import { useEditorStore } from '../../stores/editorStore';
+import { useRecordStore } from '../../stores/recordStore';
+import { formatTimer } from '../../lib/helper-pure';
 import styles from '../../styles/modules/Toolbar.module.scss';
 import cx from 'classnames';
 
@@ -23,40 +25,46 @@ import cx from 'classnames';
 
 function EditorToolbar({ onStop, onPause, videoLoaded, isVideoEdit, onCancelEdit }) {
   const [undoAllEditsLoading, setUndoAllEditsLoading] = useState(false);
+  const [showEditToolTip, setShowEditToolTip] = useState(false);
+  const [timerPopupOpen, setTimerPopupOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [modalStates, setModalStates] = useReducer(
     (prev, current) => ({ ...prev, ...current }),
     {
       deleteConfirm: false,
       cancelEditConfirm: false,
       undoEditsCompleted: false,
+      settings: false,
     }
   );
 
   const {
-    trimMode,
-    blurMode,
-    ctaMode,
     toggleVideo,
     isPlaying,
+    hasDraggedCursor,
+    totalVideoDuration,
   } = useEditorStore((state) => ({
-    trimMode: state.trimMode,
-    blurMode: state.blurMode,
-    ctaMode: state.ctaMode,
     toggleVideo: state.toggleVideo,
     isPlaying: state.isPlaying(),
+    hasDraggedCursor: state.hasDraggedCursor,
+    totalVideoDuration: state.totalVideoDuration,
   }));
 
-  function handleTrim() {
-    useEditorStore.setState({ trimMode: !trimMode });
-  }
+  const { recordingState, currentRecordingTime, elapsedRecordingTime, maxRecordingTime } = useRecordStore((state) => ({
+    recordingState: state.recordingState,
+    currentRecordingTime: state.currentRecordingTime,
+    elapsedRecordingTime: state.elapsedRecordingTime,
+    maxRecordingTime: state.maxRecordingTime,
+  }));
 
-  function handleBlur() {
-    useEditorStore.setState({ blurMode: !blurMode });
-  }
+  const showDragTip = !hasDraggedCursor;
+  const isRecording = recordingState === "recording" || recordingState === "recording-cam";
+  const isPaused = recordingState === "paused";
+  const reachedMaxRecordingTime = currentRecordingTime <= 0;
 
-  function handleCTA() {
-    useEditorStore.setState({ ctaMode: !ctaMode });
-  }
+  // Use currentRecordingTime (remaining recording time) like the web version
+  // This represents the countdown/remaining time, not the total video duration
+  const displayTime = currentRecordingTime;
 
   function handleCancel() {
     const event = new CustomEvent('VENTO_EDITOR_STOP');
@@ -77,53 +85,61 @@ function EditorToolbar({ onStop, onPause, videoLoaded, isVideoEdit, onCancelEdit
     <>
       <div className={cx(styles.toolbar, 'toolbar')}>
         <div className={styles.statusText}>
-          <div className={styles.status}>
-            <span>Editor</span>
+          <div
+            className={cx(styles.status, {
+              [styles.statusPaused]: !isRecording,
+            })}
+          >
+            <MdFiberManualRecord />
+            {reachedMaxRecordingTime ? (
+              "Max recording time reached"
+            ) : (
+              <>
+                {isRecording ? "Recording" : "Paused"}
+                <span className={styles.timer}>
+                  {formatTimer(displayTime)}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
+        {showDragTip && (
+          <span className={cx(styles.dragCursorTip, 'drag-cursor-tip')}>
+            Drag <div className="cursor" /> below the video to rewind!
+          </span>
+        )}
+
         <div className={styles.buttons}>
-          <Tooltip label={isPlaying ? 'Pause video' : 'Play video'}>
-            <button
-              id="editorPlayPauseButton"
-              onClick={toggleVideo}
-              className={styles.playPauseBtn}
-            >
-              {isPlaying ? <IoIosPause size={20} /> : <BsFillPlayFill size={20} />}
-            </button>
-          </Tooltip>
-
-          <Tooltip label={trimMode ? 'Exit trim mode' : 'Trim video'}>
-            <button
-              id="editorTrimButton"
-              onClick={handleTrim}
-              className={cx(styles.editorBtn, { [styles.active]: trimMode })}
-            >
-              <BiGridHorizontal size={20} />
-              Trim
-            </button>
-          </Tooltip>
-
-          <Tooltip label={blurMode ? 'Exit blur mode' : 'Blur region'}>
-            <button
-              id="editorBlurButton"
-              onClick={handleBlur}
-              className={cx(styles.editorBtn, { [styles.active]: blurMode })}
-            >
-              <TbBlur size={20} />
-              Blur
-            </button>
-          </Tooltip>
-
-          <Tooltip label={ctaMode ? 'Exit CTA mode' : 'Add CTA'}>
-            <button
-              id="editorCTAButton"
-              onClick={handleCTA}
-              className={cx(styles.editorBtn, { [styles.active]: ctaMode })}
-            >
-              CTA
-            </button>
-          </Tooltip>
+          <Popover
+            opened={timerPopupOpen}
+            onChange={setTimerPopupOpen}
+            position="right"
+            withArrow
+            shadow="md"
+          >
+            <Popover.Target>
+              <Tooltip label="Set recording countdown">
+                <button onClick={() => setTimerPopupOpen(true)}>
+                  <RiTimerLine size={20} />
+                </button>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <label>Countdown</label>
+              <ul className="btn-group">
+                <li>
+                  <button onClick={() => setTimerPopupOpen(false)}>None</button>
+                </li>
+                <li>
+                  <button onClick={() => setTimerPopupOpen(false)}>3s</button>
+                </li>
+                <li>
+                  <button onClick={() => setTimerPopupOpen(false)}>5s</button>
+                </li>
+              </ul>
+            </Popover.Dropdown>
+          </Popover>
 
           <Tooltip label="Finish editing recording">
             <button
@@ -137,24 +153,43 @@ function EditorToolbar({ onStop, onPause, videoLoaded, isVideoEdit, onCancelEdit
             </button>
           </Tooltip>
 
-          {isVideoEdit && (
-            <Tooltip label="Undo All Edits">
-              <button
-                id="cancelEditButton"
-                onClick={() => setModalStates({ cancelEditConfirm: true })}
-              >
-                Undo All Edits
-                <FaUndo style={{ width: '20px', paddingLeft: '5px' }} />
-              </button>
-            </Tooltip>
-          )}
+          <Tooltip label="Undo All Edits">
+            <button
+              id="cancelEditButton"
+              onClick={() => setModalStates({ cancelEditConfirm: true })}
+              disabled={!isVideoEdit}
+              style={isVideoEdit ? {} : { pointerEvents: 'none', opacity: '0.5' }}
+            >
+              Undo All Edits
+              <FaUndo style={{ width: '20px', paddingLeft: '5px' }} />
+            </button>
+          </Tooltip>
+
+          <Popover
+            opened={showEditToolTip}
+            onChange={setShowEditToolTip}
+            position="top"
+            withArrow
+            shadow="md"
+          >
+            <Popover.Target>
+              <Tooltip label="Input Settings" zIndex={20}>
+                <button onClick={() => setModalStates({ settings: true })}>
+                  <IoSettingsOutline size={20} />
+                </button>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <p>Change your camera & audio settings here before re-recording</p>
+            </Popover.Dropdown>
+          </Popover>
 
           <Tooltip label="Delete recording">
             <button
               id="editorStopButton"
               onClick={() => setModalStates({ deleteConfirm: true })}
             >
-              <VscTrash />
+              <VscTrash size={20} />
             </button>
           </Tooltip>
         </div>

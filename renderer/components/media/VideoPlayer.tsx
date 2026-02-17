@@ -145,7 +145,10 @@ const VideoPlayer = ({
           videojs.log("player is ready");
           onReady?.(player);
 
-          captionButtonRef.current?.toggleCaption();
+          // Only toggle caption if captions are available
+          if (captionButtonRef.current?.options?.src) {
+            captionButtonRef.current.toggleCaption();
+          }
           const header = videoElement.querySelector("[data-slot='overlay']");
 
           if (header) {
@@ -165,13 +168,14 @@ const VideoPlayer = ({
           }
 
           // Initialize AnnotationPopup after player is ready and DOM is available
+          // Only initialize if the annotation-popup-content element exists (e.g., in ViewRecording page)
           setTimeout(() => {
             try {
-              if (!popupRef.current) {
+              if (!popupRef.current && document.querySelector(".annotation-popup-content")) {
                 popupRef.current = new AnnotationPopup(player);
               }
             } catch (error) {
-              console.warn("Failed to initialize AnnotationPopup:", error);
+              // Silently handle errors - AnnotationPopup may not be needed in all contexts
             }
           }, 0);
         }
@@ -237,7 +241,8 @@ const VideoPlayer = ({
       }
 
       modalRef.current?.toggle(videoJsOptions.allowEndVideoModal);
-      onReady?.(player);
+      // Don't call onReady again if player already exists - it was already called during initialization
+      // This prevents infinite loops when onReady updates state that causes re-renders
     }
   }, [onReady, videoJsOptions, className]);
 

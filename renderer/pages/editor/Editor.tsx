@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState, useCallback, useReducer } from 'react';
-import { Loader } from '@mantine/core';
+import { Loader, Select } from '@mantine/core';
 import { BsFillPlayFill } from 'react-icons/bs';
 import { IoIosPause } from 'react-icons/io';
+import { CgTranscript } from 'react-icons/cg';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatVideoDurationWithMs, convertToMilliseconds, updateBlurAfterTrim } from '@lib/helper-pure';
 import { DEFAULT_LINK_TEXT, DEFAULT_LINK_URL } from '@lib/constants';
-import { CtaType } from '@lib/types';
+import { CtaType, transcriptionLanguage } from '@lib/types';
 import type { AuthorAnnotation } from '@schema/models/AuthorAnnotation';
 import type { ChapterHeading } from '@schema/models/ChapterHeading';
 import webAPI from '@lib/webapi';
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
 import Header from '../../components/common/Header';
-import VideoPlayer from '../../components/media/VideoPlayer';
 import Timeline from '../../components/record/Timeline';
 import EditorToolbar from '../../components/record/EditorToolbar';
 import BlurSettings from '../../components/record/BlurSettings';
@@ -23,7 +25,7 @@ import { useRecordStore } from '../../stores/recordStore';
 import { useEditorStore } from '../../stores/editorStore';
 import { useAuth } from '../../stores/authStore';
 import styles from '../../styles/modules/Editor.module.scss';
-// import cx from 'classnames'; // Unused import
+import cx from 'classnames';
 
 /**
  * Full-featured desktop editor with all functionality:
@@ -60,12 +62,21 @@ type RecordingInfo = {
   currentVideoDuration: number;
 };
 
+type TranscriptInfo = {
+  transcription?: any;
+  generatingTranscript: boolean;
+  transcriptLanguage: string;
+  autogen: boolean;
+};
+
 function EditorPage() {
   const navigate = useNavigate();
   const { id: recordingId } = useParams();
   const { ventoUser } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<any>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [buffering, setBuffering] = useState(false);
   
   const [currentVideoDuration, setCurrentVideoDuration] = useState(0);
   const [isVideoEdit, setIsVideoEdit] = useState(false);
@@ -100,8 +111,24 @@ function EditorPage() {
     } as RecordingInfo
   );
 
-  const { finalVideoUrl } = useRecordStore((state: any) => ({
+  const [transcriptInfo, setTranscriptInfo] = useReducer<
+    React.Reducer<TranscriptInfo, Partial<TranscriptInfo>>
+  >(
+    (prev, cur) => ({ ...prev, ...cur }),
+    {
+      transcriptLanguage: localStorage?.getItem("transcriptLanguage") ?? "en",
+      generatingTranscript: false,
+      autogen: false,
+      transcription: currentRecording?.editMetadata?.transcription ?? undefined,
+    }
+  );
+
+  const [searchValue, setSearchValue] = useState('');
+
+  const { finalVideoUrl, maxRecordingTime, startRecording } = useRecordStore((state: any) => ({
     finalVideoUrl: state.finalVideoUrl,
+    maxRecordingTime: state.maxRecordingTime,
+    startRecording: state.startRecording,
   }));
 
   const {
@@ -145,6 +172,27 @@ function EditorPage() {
             videoCTAs: recording.metadata?.ctas ?? [],
             videoBlur: recording.metadata?.blur ?? [],
           });
+
+          // Set recording in store like web version
+          if (!useRecordStore.getState().currentRecording) {
+            useRecordStore.setState({
+              recordingState: "paused",
+              currentRecording: recording,
+            });
+
+            // After the recording is loaded, we need to update the countdown time.
+            // We'll need to wait until totalVideoDuration is updated (handled by the video player), then we can calculate the countdown time.
+            // This matches the web version's subscription pattern
+            useEditorStore.subscribe((state, prev) => {
+              if (state.totalVideoDuration !== prev.totalVideoDuration && state.totalVideoDuration > 0) {
+                const countdownTime =
+                  useRecordStore.getState().maxRecordingTime -
+                  state.totalVideoDuration;
+
+                useRecordStore.setState({ currentRecordingTime: countdownTime });
+              }
+            });
+          }
         })
         .catch((err: any) => {
           console.error('Error loading recording:', err);
@@ -153,27 +201,110 @@ function EditorPage() {
     }
   }, [recordingId]);
 
-  // Initialize video element reference when VideoPlayer is ready
-  const handlePlayerReady = useCallback((player: any) => {
-    if (player && player.el) {
-      const videoEl = player.el().querySelector('video');
-      if (videoEl) {
-        videoRef.current = videoEl;
-        useEditorStore.setState({ videoElement: videoEl });
+  /**
+   * Initialize/replace Video.js on a dedicated container and load source.
+   * This matches the web version's implementation.
+   */
+  useEffect(() => {
+    const container = playerContainerRef.current;
+    const videoUrl = currentRecording?.videoUrl || finalVideoUrl;
+    if (!videoUrl || !container) return;
 
-        // Set up duration tracking
-        videoEl.addEventListener('loadedmetadata', () => {
-          const duration = videoEl.duration * 1000;
-          useEditorStore.setState({ totalVideoDuration: duration });
-        });
+    // Dispose existing player and clear container
+    const existingPlayer = playerRef.current;
+    if (existingPlayer && typeof existingPlayer.dispose === "function") {
+      existingPlayer.dispose();
+    }
+    playerRef.current = null;
+    if (container) {
+      container.innerHTML = "";
+    }
 
-        // Set up timeupdate tracking
-        videoEl.addEventListener('timeupdate', () => {
-          setCurrentVideoDuration(videoEl.currentTime * 1000);
-          setInfo({ currentVideoDuration: videoEl.currentTime * 1000 });
+    // Create a video element not managed by React
+    const el = document.createElement("video");
+    el.className = "video-js vjs-default-skin";
+    el.setAttribute("playsinline", "true");
+    if (container) {
+      container.appendChild(el);
+    }
+
+    // Initialize Video.js
+    const player = videojs(el, {
+      controls: false,
+      bigPlayButton: false,
+      controlBar: false,
+      userActions: { hotkeys: false },
+      preload: "auto",
+      fluid: false,
+      fill: false,
+    });
+    playerRef.current = player;
+
+    // Expose underlying tech element for other logic
+    const techVideo = (player.el().getElementsByTagName("video")[0] as HTMLVideoElement) || el;
+    videoRef.current = techVideo;
+    useEditorStore.setState({ videoElement: techVideo });
+
+    // Set source
+    const type = videoUrl.endsWith(".mp4") ? "video/mp4" : "application/x-mpegURL";
+    if (typeof player.pause === "function") {
+      player.pause();
+    }
+    player.src({ src: videoUrl, type });
+    if (typeof player.load === "function") {
+      player.load();
+    }
+
+    // Buffering indicators
+    const setBufTrue = () => setBuffering(true);
+    const setBufFalse = () => setBuffering(false);
+    player.on("waiting", setBufTrue);
+    player.on("canplay", setBufFalse);
+    player.on("playing", setBufFalse);
+    player.on("loadeddata", setBufFalse);
+    player.on("error", setBufFalse);
+
+    // Duration updates
+    player.on("durationchange", () => {
+      const durationSec = player.duration();
+      if (typeof durationSec === "number" && !isNaN(durationSec)) {
+        const totalVideoDuration = durationSec * 1000;
+        useEditorStore.setState({ totalVideoDuration });
+
+        // Set the current recording time to the max recording time minus the video duration
+        // This matches the web version's Editor component (line 1044-1048)
+        useRecordStore.setState({
+          currentRecordingTime:
+            useRecordStore.getState().maxRecordingTime - totalVideoDuration,
+          elapsedRecordingTime: totalVideoDuration,
         });
       }
-    }
+    });
+
+    // Cleanup function
+    return () => {
+      const cleanupPlayer = playerRef.current;
+      if (cleanupPlayer && typeof cleanupPlayer.off === "function") {
+        cleanupPlayer.off("waiting", setBufTrue);
+        cleanupPlayer.off("canplay", setBufFalse);
+        cleanupPlayer.off("playing", setBufFalse);
+        cleanupPlayer.off("loadeddata", setBufFalse);
+        cleanupPlayer.off("error", setBufFalse);
+      }
+      if (cleanupPlayer && typeof cleanupPlayer.dispose === "function") {
+        cleanupPlayer.dispose();
+      }
+      playerRef.current = null;
+      if (container) {
+        container.innerHTML = "";
+      }
+    };
+  }, [currentRecording, finalVideoUrl]);
+
+  // Handle current time update from Timeline
+  const handleCurrentTimeUpdate = useCallback((durationInMs: number) => {
+    setCurrentVideoDuration(durationInMs);
+    setInfo({ currentVideoDuration: durationInMs });
   }, []);
 
   // Update CTA list helper
@@ -362,6 +493,35 @@ function EditorPage() {
     }
   }, [trimStart, trimEnd, totalVideoDuration, info.videoBlur]);
 
+  // Calculate if cursor is at end of video
+  const cursorAtEndOfVideo =
+    formatVideoDurationWithMs(info.currentVideoDuration) ===
+    formatVideoDurationWithMs(totalVideoDuration);
+
+  // Handle replace/resume recording
+  const onReplace = useCallback(() => {
+    if (cursorAtEndOfVideo && info.currentVideoDuration >= maxRecordingTime - 100) {
+      console.log("Recording Limit Reached");
+      // TODO: Show notification
+      return;
+    } else if (info.currentVideoDuration > maxRecordingTime - 1000) {
+      console.log('Clip Too Short!');
+      // TODO: Show notification
+      return;
+    }
+
+    if (startRecording) {
+      startRecording(info.currentVideoDuration, true);
+      setIsVideoEdit(true);
+    }
+  }, [cursorAtEndOfVideo, info.currentVideoDuration, maxRecordingTime, startRecording]);
+
+  // Handle generate transcription
+  const onGenerateTranscriptionClick = useCallback(() => {
+    // TODO: Open transcription modal or trigger transcription generation
+    console.log('Generate transcription clicked', transcriptInfo.transcriptLanguage);
+  }, [transcriptInfo.transcriptLanguage]);
+
   // Handle editor dropdown actions
   const handleEditorDropdownAction = useCallback(
     async (action: string) => {
@@ -533,16 +693,6 @@ function EditorPage() {
 
   const videoUrl = currentRecording?.videoUrl || finalVideoUrl;
   const audioUrl = currentRecording?.audioUrl || null;
-  const transcription = currentRecording?.transcription || null;
-
-  const options = videoUrl
-    ? {
-        sources: [{ src: videoUrl }],
-        allowEndVideoModal: false,
-        trackSource: transcription ? JSON.stringify(transcription) : null,
-        createdAt: currentRecording?.createdAt || new Date().toISOString(),
-      }
-    : undefined;
 
   return (
     <>
@@ -593,64 +743,59 @@ function EditorPage() {
               }}
             />
 
-            <section className={styles.videoContainer}>
-              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                <VideoPlayer options={options} onReady={handlePlayerReady} />
-                {blurMode && videoRef.current && (
-                  <BlurRegionSelector videoRef={videoRef} blurMode={blurMode} />
-                )}
+            <div className={styles.editor}>
+              <div className={styles.leftColumn}>
+                <div aria-label="video overlay" className={styles.mainVideo}>
+                  {blurMode && videoRef.current && (
+                    <BlurRegionSelector videoRef={videoRef} blurMode={blurMode} />
+                  )}
+                  <div ref={playerContainerRef} style={{ width: "100%", height: "100%" }} />
+                  {buffering && (
+                    <Loader className={styles.bufferingLoader} color="green" />
+                  )}
+                </div>
+                <Timeline
+                  onCurrentTimeUpdate={handleCurrentTimeUpdate}
+                  headings={info.videoChapterHeadings as any}
+                  onHeadingClick={handleHeadingClick}
+                  annotations={info.videoAnnotations as any}
+                  onAnnotationClick={handleAnnotationClick}
+                  ctas={info.videoCTAs as any}
+                  onCtaClick={(index: number) => {
+                    setInfo({ currentCta: info.videoCTAs[index] });
+                    useEditorStore.setState({ ctaMode: true });
+                    if (videoRef.current) {
+                      videoRef.current.currentTime = info.videoCTAs[index].time / 1000;
+                    }
+                  }}
+                  onCtaDurationUpdate={(index: number, duration: number) => {
+                    const updatedCtas = [...info.videoCTAs];
+                    updatedCtas[index].time = duration;
+                    setInfo({ videoCTAs: updatedCtas });
+                    setIsVideoEdit(true);
+                  }}
+                  blur={info.videoBlur as any}
+                  audioUrl={audioUrl}
+                />
+                <div className={styles.videoActionContainer}>
+                  <button
+                    id="playPauseBtn"
+                    className={styles.playPauseBtn}
+                    onClick={() => useEditorStore.getState().toggleVideo()}
+                  >
+                    {useEditorStore.getState().isPlaying() ? (
+                      <IoIosPause size={20} />
+                    ) : (
+                      <BsFillPlayFill size={20} />
+                    )}
+                  </button>
+                  <span className={styles.videoTimer}>
+                    <b>{formatVideoDurationWithMs(currentVideoDuration)}</b> /{' '}
+                    {formatVideoDurationWithMs(totalVideoDuration)}
+                  </span>
+                </div>
               </div>
-            </section>
-
-            <section className={styles.timelineContainer}>
-              <Timeline
-                onCurrentTimeUpdate={(durationInMs: number) => {
-                  setCurrentVideoDuration(durationInMs);
-                  setInfo({ currentVideoDuration: durationInMs });
-                }}
-                headings={info.videoChapterHeadings as any}
-                onHeadingClick={handleHeadingClick}
-                annotations={info.videoAnnotations as any}
-                onAnnotationClick={handleAnnotationClick}
-                ctas={info.videoCTAs as any}
-                onCtaClick={(index: number) => {
-                  setInfo({ currentCta: info.videoCTAs[index] });
-                  useEditorStore.setState({ ctaMode: true });
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = info.videoCTAs[index].time / 1000;
-                  }
-                }}
-                onCtaDurationUpdate={(index: number, duration: number) => {
-                  const updatedCtas = [...info.videoCTAs];
-                  updatedCtas[index].time = duration;
-                  setInfo({ videoCTAs: updatedCtas });
-                  setIsVideoEdit(true);
-                }}
-                blur={info.videoBlur as any}
-                audioUrl={audioUrl}
-              />
-            </section>
-
-            <div className={styles.videoActionContainer}>
-              <button
-                id="playPauseBtn"
-                className={styles.playPauseBtn}
-                onClick={() => useEditorStore.getState().toggleVideo()}
-              >
-                {useEditorStore.getState().isPlaying() ? (
-                  <IoIosPause size={20} />
-                ) : (
-                  <BsFillPlayFill size={20} />
-                )}
-              </button>
-              <span className={styles.videoTimer}>
-                <b>{formatVideoDurationWithMs(currentVideoDuration)}</b> /{' '}
-                {formatVideoDurationWithMs(totalVideoDuration)}
-              </span>
-            </div>
-
-            {/* Right column for editor controls */}
-            <div className={styles.rightColumn}>
+              <div className={styles.rightColumn}>
               {ctaMode && info.currentCta ? (
                 <CtaLinkInput
                   currentCta={info.currentCta}
@@ -693,15 +838,78 @@ function EditorPage() {
                   videoDuration={totalVideoDuration}
                 />
               ) : (
-                <div className={styles.actionContainer}>
-                  <EditorEditDropdown
-                    currentVideoDuration={currentVideoDuration}
-                    onAction={handleEditorDropdownAction}
-                    openTooltip={modalStates.editorTooltip}
-                    setOpenTooltip={(val: boolean) => setModalStates({ editorTooltip: val })}
-                  />
-                </div>
+                <>
+                  {currentRecording?.audioUrl && (
+                    <>
+                      {transcriptInfo.transcription?.autogen ||
+                        transcriptInfo.generatingTranscript ? (
+                        <div className={styles.transcriptionLoading}>
+                          Generating transcription
+                          <Loader variant="dots" color="gray" />
+                        </div>
+                      ) : (
+                        <>
+                          {!transcriptInfo.transcription?.results ? (
+                            <div className={styles.generateTranscriptionContainer}>
+                              <button
+                                onClick={onGenerateTranscriptionClick}
+                                className={styles.generateTranscriptionBtn}
+                                disabled={!searchValue.trim()}
+                              >
+                                <CgTranscript size={20} />
+                                Generate Transcription
+                              </button>
+                              <Select
+                                placeholder="Language"
+                                data={transcriptionLanguage}
+                                defaultValue={transcriptInfo.transcriptLanguage}
+                                searchable
+                                clearable
+                                searchValue={searchValue}
+                                onSearchChange={setSearchValue}
+                                onChange={(e) => {
+                                  if (e) {
+                                    setTranscriptInfo({
+                                      transcriptLanguage: e,
+                                    });
+                                    localStorage.setItem("transcriptLanguage", e);
+                                  }
+                                }}
+                                classNames={{
+                                  input: styles.languageSelectInput,
+                                  rightSection: styles.languageSelectRightSection,
+                                }}
+                              />
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </>
+                  )}
+                  <div className={styles.actionContainer}>
+                    <button
+                      className={cx({
+                        [styles.resumeBtn]: cursorAtEndOfVideo,
+                        [styles.replaceBtn]: !cursorAtEndOfVideo,
+                      })}
+                      onClick={onReplace}
+                    >
+                      {cursorAtEndOfVideo
+                        ? "Resume Recording"
+                        : `Replace from ${formatVideoDurationWithMs(
+                            info.currentVideoDuration
+                          )}`}
+                    </button>
+                    <EditorEditDropdown
+                      currentVideoDuration={currentVideoDuration}
+                      onAction={handleEditorDropdownAction}
+                      openTooltip={modalStates.editorTooltip}
+                      setOpenTooltip={(val: boolean) => setModalStates({ editorTooltip: val })}
+                    />
+                  </div>
+                </>
               )}
+              </div>
             </div>
           </>
         )}

@@ -81,7 +81,11 @@ export default function EditorEditDropdown({
             onClick={() => setOpenTooltip(false)}
             className={styles.editBtn}
           >
-            Edit Video {open ? <MdKeyboardArrowUp /> : <MdKeyboardArrowDown />}
+            <span className={styles.editBtnText}>
+              <span>Edit</span>
+              <span>Video</span>
+            </span>
+            <MdKeyboardArrowUp />
           </button>
         </Menu.Target>
 

@@ -8,16 +8,17 @@ class AnnotationPopup extends Component {
     super(player, options);
 
     // Wait for the DOM element to be available
+    // Note: This element only exists in ViewRecording page, not in Editor page
     const overlay = document.querySelector(".annotation-popup-content");
     if (!overlay) {
-      console.warn("AnnotationPopup: .annotation-popup-content not found, skipping initialization");
+      // Silently skip initialization if element doesn't exist - this is expected in some contexts
       this.modal = null;
       return;
     }
 
     const closeBtn = overlay.querySelector("button");
     if (!closeBtn) {
-      console.warn("AnnotationPopup: close button not found, skipping initialization");
+      // Silently skip initialization if close button doesn't exist
       this.modal = null;
       return;
     }

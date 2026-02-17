@@ -101,15 +101,20 @@ button {
 }
 
 .drag-cursor-tip {
-  color: white;
-
-  @include flex;
+  color: black;
+  white-space: nowrap;
+  display: inline-flex;
   align-items: center;
+  gap: 0;
 
   .cursor {
     position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+    z-index: 1;
 
-    width: 1.5px;
+    width: 2px;
     height: 30px;
     background-color: $red-400;
 
