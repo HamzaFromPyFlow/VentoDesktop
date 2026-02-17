@@ -754,7 +754,7 @@ function EditorPage() {
                     <Loader className={styles.bufferingLoader} color="green" />
                   )}
                 </div>
-                <Timeline
+                {/* <Timeline
                   onCurrentTimeUpdate={handleCurrentTimeUpdate}
                   headings={info.videoChapterHeadings as any}
                   onHeadingClick={handleHeadingClick}
@@ -776,7 +776,7 @@ function EditorPage() {
                   }}
                   blur={info.videoBlur as any}
                   audioUrl={audioUrl}
-                />
+                /> */}
                 <div className={styles.videoActionContainer}>
                   <button
                     id="playPauseBtn"
