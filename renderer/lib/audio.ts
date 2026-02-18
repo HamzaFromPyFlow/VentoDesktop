@@ -1,43 +1,186 @@
 // Note: Requires lodash - install with: npm install lodash @types/lodash
 
 export async function playAudio(url: string, gainValue = 0.5, callback: (() => void) | null = null) {
-  var AudioContext =
-    window?.AudioContext || // Default
-    false;
+  // Check if we're in Electron - audio playback can cause crashes during recording setup
+  const isElectron = window.navigator.userAgent.includes('Electron');
+  
+  try {
+    var AudioContext =
+      window?.AudioContext || // Default
+      (window as any)?.webkitAudioContext || // Safari fallback
+      false;
 
-  if (AudioContext) {
-    const context = new AudioContext();
-    const gainNode = context.createGain();
-    gainNode.connect(context.destination);
+    if (!AudioContext) {
+      console.warn('[playAudio] Web Audio API is not supported');
+      if (callback) {
+        callback();
+      }
+      return;
+    }
 
-    gainNode.gain.value = gainValue;
+    // In Electron, delay audio playback slightly to avoid conflicts with recording AudioContext
+    if (isElectron) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Create AudioContext with error handling for Electron
+    let context: AudioContext;
+    try {
+      context = new AudioContext();
+    } catch (err) {
+      console.error('[playAudio] Failed to create AudioContext:', err);
+      if (callback) {
+        callback();
+      }
+      return;
+    }
+
+    // Resume AudioContext if suspended (required in some browsers/Electron)
+    if (context.state === 'suspended') {
+      try {
+        await context.resume();
+      } catch (err) {
+        console.warn('[playAudio] Failed to resume AudioContext:', err);
+        // If resume fails, close context and return early
+        try {
+          await context.close();
+        } catch (closeErr) {
+          // Ignore close errors
+        }
+        if (callback) {
+          callback();
+        }
+        return;
+      }
+    }
+
+    let gainNode;
+    try {
+      gainNode = context.createGain();
+      gainNode.connect(context.destination);
+      gainNode.gain.value = gainValue;
+    } catch (err) {
+      console.error('[playAudio] Error creating gain node:', err);
+      try {
+        await context.close();
+      } catch (closeErr) {
+        // Ignore close errors
+      }
+      if (callback) {
+        callback();
+      }
+      return;
+    }
 
     try {
       const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch audio: ${res.status} ${res.statusText}`);
+      }
       const buffer = await res.arrayBuffer();
 
-      context.decodeAudioData(buffer, (audioBuffer) => {
-        const source = context.createBufferSource();
-        source.buffer = audioBuffer;
-
-        source.connect(gainNode);
-        source.start(0);
-
-        source.onended = () => {
+      context.decodeAudioData(
+        buffer,
+        (audioBuffer) => {
+          try {
+            const source = context.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(gainNode);
+            
+            // Set up error handler before starting
+            source.onended = () => {
+              try {
+                if (callback) {
+                  callback();
+                }
+              } catch (callbackErr) {
+                console.error('[playAudio] Error in callback:', callbackErr);
+              }
+              // Clean up context after playback
+              try {
+                if (context.state !== 'closed') {
+                  context.close().catch(() => {
+                    // Ignore close errors
+                  });
+                }
+              } catch (closeErr) {
+                // Ignore close errors
+              }
+            };
+            
+            source.onerror = (err) => {
+              console.error('[playAudio] Audio source error:', err);
+              try {
+                if (callback) {
+                  callback();
+                }
+              } catch (callbackErr) {
+                // Ignore callback errors
+              }
+              try {
+                if (context.state !== 'closed') {
+                  context.close().catch(() => {
+                    // Ignore close errors
+                  });
+                }
+              } catch (closeErr) {
+                // Ignore close errors
+              }
+            };
+            
+            source.start(0);
+          } catch (err) {
+            console.error('[playAudio] Error creating/starting audio source:', err);
+            try {
+              if (context.state !== 'closed') {
+                context.close().catch(() => {
+                  // Ignore close errors
+                });
+              }
+            } catch (closeErr) {
+              // Ignore close errors
+            }
+            if (callback) {
+              callback();
+            }
+          }
+        },
+        (err) => {
+          console.error('[playAudio] Error decoding audio data:', err);
+          try {
+            if (context.state !== 'closed') {
+              context.close().catch(() => {
+                // Ignore close errors
+              });
+            }
+          } catch (closeErr) {
+            // Ignore close errors
+          }
           if (callback) {
-            callback()
+            callback();
           }
         }
-      });
+      );
     } catch (err) {
-      console.warn(err);
+      console.error('[playAudio] Error fetching/decoding audio:', err);
+      try {
+        if (context.state !== 'closed') {
+          context.close().catch(() => {
+            // Ignore close errors
+          });
+        }
+      } catch (closeErr) {
+        // Ignore close errors
+      }
+      if (callback) {
+        callback();
+      }
     }
-  } else {
-    // Web Audio API is not supported
-    // Alert the user
-    console.log(
-      "Sorry, but the Web Audio API is not supported by your browser. Please, consider upgrading to the latest version or downloading Google Chrome or Mozilla Firefox"
-    );
+  } catch (err) {
+    console.error('[playAudio] Unexpected error:', err);
+    if (callback) {
+      callback();
+    }
   }
 }
 

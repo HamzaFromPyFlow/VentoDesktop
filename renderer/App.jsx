@@ -73,9 +73,37 @@ function App() {
   const { initializeAuth } = useAuth();
 
   useEffect(() => {
-    // Initialize Firebase auth listener
-    const cleanup = initializeAuth();
-    return cleanup;
+    // Delay Firebase initialization in Electron to avoid startup crashes
+    const isElectron = window.navigator.userAgent.includes('Electron');
+    let cleanup;
+    let timer;
+    
+    const initAuth = () => {
+      try {
+        console.log('[App] Initializing Firebase auth...');
+        cleanup = initializeAuth();
+      } catch (error) {
+        console.error('[App] Error initializing auth:', error);
+        cleanup = () => {}; // Return empty cleanup function
+      }
+    };
+
+    if (isElectron) {
+      // Delay auth initialization in Electron
+      timer = setTimeout(() => {
+        initAuth();
+      }, 1000);
+      
+      return () => {
+        if (timer) clearTimeout(timer);
+        if (cleanup) cleanup();
+      };
+    } else {
+      initAuth();
+      return () => {
+        if (cleanup) cleanup();
+      };
+    }
   }, [initializeAuth]);
 
   return (
@@ -96,6 +124,7 @@ function App() {
               <Route path="/auth/invitation-expired" element={<InvitationExpired />} />
               <Route path="/auth/beta/no-access" element={<BetaNoAccess />} />
               <Route path="/record" element={<RecordPage />} />
+              <Route path="/record/new" element={<RecordPage />} />
               <Route path="/record/:id" element={<RecordPage />} />
               <Route path="/record/:id/edit" element={<EditorPage />} />
               <Route path="/policy" element={<PolicyPage />} />

@@ -15,16 +15,18 @@ import RecordPreview from './RecordPreview';
 // Desktop clone of the vento premium record-init-menu component.
 // This matches the structure and behavior of the original.
 
-function RecordInitMenu() {
+/**
+ * @param {() => Promise<void>} [startVideoRecording] - Callback function to start recording and handle navigation
+ */
+function RecordInitMenu({ startVideoRecording } = {}) {
   const { ventoUser, setVentoUser, setRecordingNo, recordingNo } = useAuth();
-  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder, startRecording } =
+  const { recordingState, setRecordingState, lastDisplayType, setLastDisplayType, mediaRecorder } =
     useRecordStore((state) => ({
       recordingState: state.recordingState,
       setRecordingState: state.setRecordingState,
       lastDisplayType: state.lastDisplayType,
       setLastDisplayType: state.setLastDisplayType,
       mediaRecorder: state.mediaRecorder,
-      startRecording: state.startRecording,
     }));
 
   const { mode, selectedVideoInputId } = useSettingsStore((state) => ({
@@ -48,23 +50,26 @@ function RecordInitMenu() {
    * Matches web version's startRecord function.
    */
   async function startRecord() {
-    console.log('[RecordInitMenu] startRecord called', { mode, selectedVideoInputId, ventoUser: !!ventoUser });
-    setLastDisplayType('monitor');
-    
-    // Check if camera mode but no video source selected
-    if (mode === 'camera' && selectedVideoInputId === 'none') {
-      showNotification({
-        title: 'Video Source Required',
-        message: 'Please select at least one video source in the settings menu.',
-        color: 'orange',
-        autoClose: true,
-      });
-      return;
-    }
+    console.log('[RecordInitMenu] ========================================');
+    console.log('[RecordInitMenu] START RECORD BUTTON CLICKED');
+    console.log('[RecordInitMenu] ========================================');
+    console.log('[RecordInitMenu] Parameters:', { mode, selectedVideoInputId, ventoUser: !!ventoUser });
     
     try {
+      setLastDisplayType('monitor');
     
-    // Check for screencam mode notification
+      // Check if camera mode but no video source selected
+      if (mode === 'camera' && selectedVideoInputId === 'none') {
+        showNotification({
+          title: 'Video Source Required',
+          message: 'Please select at least one video source in the settings menu.',
+          color: 'orange',
+          autoClose: true,
+        });
+        return;
+      }
+    
+      // Check for screencam mode notification
     if (mode === 'screencam' && !hideScreenNotification) {
       // TODO: Show camera screen notification modal
       // For now, just proceed
@@ -106,7 +111,14 @@ function RecordInitMenu() {
       }
       
       console.log('[RecordInitMenu] Starting recording for anonymous user');
-      await startRecording();
+      if (startVideoRecording) {
+        await startVideoRecording();
+      } else {
+        // Fallback if startVideoRecording not provided (shouldn't happen)
+        console.warn('[RecordInitMenu] startVideoRecording not provided, using direct startRecording');
+        const store = useRecordStore.getState();
+        await store.startRecording();
+      }
       console.log('[RecordInitMenu] Recording started successfully');
     } else {
       // Logged-in users: Capture fingerprint for tracking (not authentication)
@@ -169,14 +181,28 @@ function RecordInitMenu() {
       }
 
       console.log('[RecordInitMenu] Starting recording for logged-in user');
-      await startRecording();
+      if (startVideoRecording) {
+        await startVideoRecording();
+      } else {
+        // Fallback if startVideoRecording not provided (shouldn't happen)
+        console.warn('[RecordInitMenu] startVideoRecording not provided, using direct startRecording');
+        const store = useRecordStore.getState();
+        await store.startRecording();
+      }
       console.log('[RecordInitMenu] Recording started successfully');
     }
     } catch (error) {
-      console.error('[RecordInitMenu] Error in startRecord:', error);
+      console.error('[RecordInitMenu] ========================================');
+      console.error('[RecordInitMenu] START RECORD FAILED');
+      console.error('[RecordInitMenu] ========================================');
+      console.error('[RecordInitMenu] Error:', error);
+      console.error('[RecordInitMenu] Error stack:', error?.stack);
+      console.error('[RecordInitMenu] Error name:', error?.name);
+      console.error('[RecordInitMenu] Error message:', error?.message);
+      
       showNotification({
         title: 'Recording Error',
-        message: error.message || 'An error occurred while starting the recording. Please try again.',
+        message: `Failed to start recording: ${error?.message || 'Unknown error'}. Please check the console for details.`,
         color: 'red',
         autoClose: false,
       });

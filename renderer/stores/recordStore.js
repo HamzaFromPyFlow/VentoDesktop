@@ -61,24 +61,33 @@ export const useRecordStore = create((set, get) => ({
   setRecordingState: (newState) => set({ recordingState: newState }),
 
   startRecording: async (rewindStartTime, isEdit = false) => {
-    console.log('[recordStore] startRecording called', { rewindStartTime, isEdit, startLock: get().startLock });
-    if (get().startLock) {
-      console.log('[recordStore] Already locked, returning');
-      return;
-    }
+    console.log('[recordStore] ========================================');
+    console.log('[recordStore] START RECORDING CALLED');
+    console.log('[recordStore] ========================================');
+    console.log('[recordStore] Parameters:', { rewindStartTime, isEdit, startLock: get().startLock });
+    
+    try {
+      if (get().startLock) {
+        console.log('[recordStore] Already locked, returning');
+        return;
+      }
 
-    // Reset maxRecordingTime flag at start of any recording
-    set({ canMaxRecordingTimeEventOccured: false });
+      // Reset maxRecordingTime flag at start of any recording
+      set({ canMaxRecordingTimeEventOccured: false });
 
-    // Lock the start recording button
-    set({ startLock: true });
-    console.log('[recordStore] Lock set, starting recording flow...');
+      // Lock the start recording button
+      set({ startLock: true });
+      console.log('[recordStore] Step 1: Lock set, starting recording flow...');
 
-    const settings = useSettingsStore.getState();
-    const editor = useEditorStore.getState();
+      const settings = useSettingsStore.getState();
+      const editor = useEditorStore.getState();
+      console.log('[recordStore] Step 2: Settings loaded', { mode: settings.mode });
 
-    let recordStream;
-    if (settings.mode === 'screencam' || settings.mode === 'screen') {
+      let recordStream;
+      console.log('[recordStore] Step 3: Getting media stream...', { mode: settings.mode });
+      
+      if (settings.mode === 'screencam' || settings.mode === 'screen') {
+        console.log('[recordStore] Step 3a: Screen recording mode');
       const resolution = get().resolution ?? FREE_USER_RESOLUTION;
       const isPremiumUser = resolution !== FREE_USER_RESOLUTION;
       const targetWidth = resolution ?? FREE_USER_RESOLUTION;
@@ -91,8 +100,14 @@ export const useRecordStore = create((set, get) => ({
       debugLog.perf(`Target Resolution: ${targetWidth}×${targetHeight}`);
       debugLog.perf('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-      recordStream = await navigator.mediaDevices
-        .getDisplayMedia({
+      console.log('[recordStore] Step 3b: Calling getDisplayMedia...');
+      try {
+        // Check if mediaDevices is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          throw new Error('getDisplayMedia not available');
+        }
+        
+        recordStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             width: { max: targetWidth },
             height: { max: targetHeight },
@@ -105,17 +120,28 @@ export const useRecordStore = create((set, get) => ({
             autoGainControl: { ideal: false },
             channelCount: { ideal: 2 },
           },
-        })
-        .catch((err) => {
-          if (err.toString().includes('Permission denied by system')) {
-            showNotification({
-              title: 'Permission Error',
-              message: 'Please enable screen recording permission for your browser.',
-              color: 'red',
-              autoClose: false,
-            });
-          }
         });
+        console.log('[recordStore] Step 3c: getDisplayMedia succeeded', { hasStream: !!recordStream });
+      } catch (err) {
+        console.error('[recordStore] Step 3c ERROR: getDisplayMedia failed', err);
+        if (err.toString().includes('Permission denied by system')) {
+          showNotification({
+            title: 'Permission Error',
+            message: 'Please enable screen recording permission for your browser.',
+            color: 'red',
+            autoClose: false,
+          });
+        } else {
+          showNotification({
+            title: 'Screen Recording Error',
+            message: `Failed to start screen recording: ${err.message || err}`,
+            color: 'red',
+            autoClose: false,
+          });
+        }
+        set({ startLock: false });
+        throw err; // Re-throw to be caught by outer try-catch
+      }
 
       if (!recordStream) {
         set({ startLock: false });
@@ -131,7 +157,9 @@ export const useRecordStore = create((set, get) => ({
       }
     } else {
       // Camera-only mode - need to get webcam stream
+      console.log('[recordStore] Step 3a: Camera-only mode');
       try {
+        console.log('[recordStore] Step 3b: Preparing getUserMedia constraints...');
         const videoConstraints =
           settings.selectedVideoInputId && settings.selectedVideoInputId !== 'none'
             ? { deviceId: { exact: settings.selectedVideoInputId } }
@@ -141,65 +169,129 @@ export const useRecordStore = create((set, get) => ({
             ? { deviceId: { exact: settings.selectedAudioInputId } }
             : true;
 
+        console.log('[recordStore] Step 3c: Calling getUserMedia...', { 
+          hasVideoConstraints: !!videoConstraints,
+          hasAudioConstraints: !!audioConstraints 
+        });
+        
+        // Check if mediaDevices is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('getUserMedia not available');
+        }
+        
         const webcamStream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints,
           audio: audioConstraints,
         });
+        
+        console.log('[recordStore] Step 3d: getUserMedia succeeded', { hasStream: !!webcamStream });
 
         set({ webcamStream });
         recordStream = webcamStream;
       } catch (err) {
-        console.error('Error getting camera stream:', err);
+        console.error('[recordStore] Step 3d ERROR: getUserMedia failed', err);
         showNotification({
           title: 'Camera Access Error',
-          message: 'Please allow camera and microphone access to start recording.',
+          message: `Failed to access camera/microphone: ${err.message || err}. Please allow camera and microphone access.`,
           color: 'red',
           autoClose: false,
         });
         set({ startLock: false });
-        return;
+        throw err; // Re-throw to be caught by outer try-catch
       }
     }
 
-    set({
-      lastDisplayType: (recordStream.getVideoTracks()[0].getSettings() || {}).displaySurface || 'monitor',
-      reachedMinimumRecordingTime: false,
-    });
+    console.log('[recordStore] Step 4: Stream obtained, setting up...');
+    try {
+      const videoTrack = recordStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        throw new Error('No video track in stream');
+      }
+      const streamSettings = videoTrack.getSettings() || {};
+      console.log('[recordStore] Step 4a: Video track settings', streamSettings);
+      
+      set({
+        lastDisplayType: streamSettings.displaySurface || 'monitor',
+        reachedMinimumRecordingTime: false,
+      });
+    } catch (err) {
+      console.error('[recordStore] Step 4 ERROR: Failed to get stream settings', err);
+      set({ startLock: false });
+      throw err;
+    }
 
     // Create an Audio Context so we can manipulate the audio stream
-    const audioContext = new AudioContext();
+    console.log('[recordStore] Step 5: Creating AudioContext...');
+    let audioContext;
+    try {
+      audioContext = new AudioContext();
+      console.log('[recordStore] Step 5a: AudioContext created', { state: audioContext.state });
+      
+      // Resume AudioContext if suspended (required in some browsers/Electron)
+      if (audioContext.state === 'suspended') {
+        console.log('[recordStore] Step 5b: Resuming suspended AudioContext...');
+        await audioContext.resume();
+        console.log('[recordStore] Step 5c: AudioContext resumed', { state: audioContext.state });
+      }
+    } catch (err) {
+      console.error('[recordStore] Step 5 ERROR: AudioContext creation failed', err);
+      set({ startLock: false });
+      throw err;
+    }
     let recordAudioStreamSource;
     let userAudioStreamSource;
 
-    const dest = audioContext.createMediaStreamDestination();
+    console.log('[recordStore] Step 6: Creating audio destination...');
+    let dest;
+    try {
+      dest = audioContext.createMediaStreamDestination();
+      console.log('[recordStore] Step 6a: Audio destination created');
+    } catch (err) {
+      console.error('[recordStore] Step 6 ERROR: Failed to create audio destination', err);
+      set({ startLock: false });
+      throw err;
+    }
+    
     let selectedAudioGroupId;
     let isDefaultSilent = false;
 
     // Start microphone audio stream and attach its track to main stream
     if (settings.selectedAudioInputId && settings.selectedAudioInputId !== 'none') {
-      const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: { exact: settings.selectedAudioInputId },
-          sampleRate: { max: 96000 },
-          channelCount: { ideal: 2 },
-          echoCancellation: { ideal: false },
-          noiseSuppression: { ideal: false },
-          autoGainControl: { ideal: false },
-        },
-        video: false,
-      });
+      console.log('[recordStore] Step 7: Getting microphone audio stream...');
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: { exact: settings.selectedAudioInputId },
+            sampleRate: { max: 96000 },
+            channelCount: { ideal: 2 },
+            echoCancellation: { ideal: false },
+            noiseSuppression: { ideal: false },
+            autoGainControl: { ideal: false },
+          },
+          video: false,
+        });
+        console.log('[recordStore] Step 7a: Microphone audio stream obtained');
 
-      const selectedAudio = settings.availableAudioInput.find(
-        (device) => device.value === settings.selectedAudioInputId
-      );
-      if (selectedAudio) selectedAudioGroupId = selectedAudio.group;
+        const selectedAudio = settings.availableAudioInput.find(
+          (device) => device.value === settings.selectedAudioInputId
+        );
+        if (selectedAudio) selectedAudioGroupId = selectedAudio.group;
 
-      set({ audioStream });
-      const audioTracks = audioStream?.getAudioTracks();
+        set({ audioStream });
+        const audioTracks = audioStream?.getAudioTracks();
 
-      if (audioTracks && audioTracks.length > 0) {
-        userAudioStreamSource = audioContext.createMediaStreamSource(audioStream);
+        if (audioTracks && audioTracks.length > 0) {
+          console.log('[recordStore] Step 7b: Creating audio source from microphone...');
+          userAudioStreamSource = audioContext.createMediaStreamSource(audioStream);
+          console.log('[recordStore] Step 7c: Audio source created');
+        }
+      } catch (err) {
+        console.error('[recordStore] Step 7 ERROR: Failed to get microphone audio', err);
+        // Don't fail completely - continue without microphone audio
+        console.warn('[recordStore] Continuing without microphone audio');
       }
+    } else {
+      console.log('[recordStore] Step 7: Skipping microphone (no audio input selected)');
     }
 
     // This is the audio stream that will temporarily hold the audio data in the final recording
@@ -243,12 +335,47 @@ export const useRecordStore = create((set, get) => ({
       }
     }
 
-    const mimeType = getMimeType();
-    const videoBitrate = 8000000;
-    const mediaRecorder = new MediaRecorder(recordStream, {
-      mimeType,
-      videoBitsPerSecond: videoBitrate,
-    });
+    console.log('[recordStore] Step 8: Creating MediaRecorder...');
+    let mediaRecorder;
+    try {
+      const mimeType = getMimeType();
+      console.log('[recordStore] Step 8a: MIME type determined', { mimeType });
+      
+      const videoBitrate = 8000000;
+      console.log('[recordStore] Step 8b: Creating MediaRecorder with options', { mimeType, videoBitrate });
+      
+      // Check if MediaRecorder is supported
+      if (!window.MediaRecorder) {
+        throw new Error('MediaRecorder not supported');
+      }
+      
+      // Check if MIME type is supported
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        console.warn('[recordStore] MIME type not supported, trying fallback');
+        const fallbackTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+        let supportedType = fallbackTypes.find(type => MediaRecorder.isTypeSupported(type));
+        if (!supportedType) {
+          throw new Error('No supported MIME type found for MediaRecorder');
+        }
+        console.log('[recordStore] Using fallback MIME type', { supportedType });
+        mediaRecorder = new MediaRecorder(recordStream, {
+          mimeType: supportedType,
+          videoBitsPerSecond: videoBitrate,
+        });
+      } else {
+        mediaRecorder = new MediaRecorder(recordStream, {
+          mimeType,
+          videoBitsPerSecond: videoBitrate,
+        });
+      }
+      console.log('[recordStore] Step 8c: MediaRecorder created successfully', { state: mediaRecorder.state });
+    } catch (err) {
+      console.error('[recordStore] Step 8 ERROR: MediaRecorder creation failed', err);
+      set({ startLock: false });
+      // Clean up streams
+      recordStream.getTracks().forEach(track => track.stop());
+      throw err;
+    }
 
     navigator.mediaDevices.ondevicechange = async () => {
       if (isDefaultSilent) {
@@ -282,12 +409,14 @@ export const useRecordStore = create((set, get) => ({
       document.dispatchEvent(event);
     };
 
+    console.log('[recordStore] Step 9: Creating recording in database...');
     // If there's no rewindStartTime, it's a fresh recording
     // So we'll create a new recording in the database
     let currentRecording;
-    if (typeof rewindStartTime === 'undefined') {
-      const fingerPrintData = localStorage.getItem('fingerPrintData');
-      const fingerPrint = localStorage.getItem('fingerPrint');
+    try {
+      if (typeof rewindStartTime === 'undefined') {
+        const fingerPrintData = localStorage.getItem('fingerPrintData');
+        const fingerPrint = localStorage.getItem('fingerPrint');
 
       // Parse fingerprint data if available
       let fingerprintPayload = {};
@@ -304,15 +433,28 @@ export const useRecordStore = create((set, get) => ({
         }
       }
 
-      const newRecordingRes = await webAPI.recording.recordingCreateRecording(fingerprintPayload);
-      if (fingerPrint) {
-        await webAPI.fingerPrint.fingerPrintSetHasRecorded(fingerPrint);
-      }
+        console.log('[recordStore] Step 9a: Calling recordingCreateRecording API...');
+        const newRecordingRes = await webAPI.recording.recordingCreateRecording(fingerprintPayload);
+        console.log('[recordStore] Step 9b: Recording created in database', { recordingId: newRecordingRes?.recording?.id });
+        
+        if (fingerPrint) {
+          console.log('[recordStore] Step 9c: Setting fingerprint has recorded...');
+          await webAPI.fingerPrint.fingerPrintSetHasRecorded(fingerPrint);
+        }
 
-      currentRecording = newRecordingRes.recording;
-      set({ currentRecording });
-    } else {
-      currentRecording = get().currentRecording;
+        currentRecording = newRecordingRes.recording;
+        set({ currentRecording });
+        console.log('[recordStore] Step 9d: Recording set in store');
+      } else {
+        console.log('[recordStore] Step 9: Using existing recording (rewind mode)');
+        currentRecording = get().currentRecording;
+      }
+    } catch (err) {
+      console.error('[recordStore] Step 9 ERROR: Failed to create recording in database', err);
+      set({ startLock: false });
+      // Clean up streams
+      recordStream.getTracks().forEach(track => track.stop());
+      throw err;
     }
 
     const selectionRegion = get().selectionRegion;
@@ -690,7 +832,68 @@ export const useRecordStore = create((set, get) => ({
     }
 
     set({ startLock: false });
+    
+    console.log('[recordStore] ========================================');
+    console.log('[recordStore] START RECORDING COMPLETED SUCCESSFULLY');
+    console.log('[recordStore] ========================================');
     return currentRecording;
+    } catch (error) {
+      console.error('[recordStore] ========================================');
+      console.error('[recordStore] START RECORDING FAILED');
+      console.error('[recordStore] ========================================');
+      console.error('[recordStore] Error:', error);
+      console.error('[recordStore] Error stack:', error?.stack);
+      console.error('[recordStore] Error name:', error?.name);
+      console.error('[recordStore] Error message:', error?.message);
+      
+      // Ensure lock is released
+      set({ startLock: false });
+      
+      // Clean up any streams that might have been created
+      try {
+        const state = get();
+        if (state.recordStream) {
+          state.recordStream.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (e) {
+              console.error('[recordStore] Error stopping track:', e);
+            }
+          });
+        }
+        if (state.webcamStream) {
+          state.webcamStream.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (e) {
+              console.error('[recordStore] Error stopping webcam track:', e);
+            }
+          });
+        }
+        if (state.audioStream) {
+          state.audioStream.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (e) {
+              console.error('[recordStore] Error stopping audio track:', e);
+            }
+          });
+        }
+      } catch (cleanupError) {
+        console.error('[recordStore] Error during cleanup:', cleanupError);
+      }
+      
+      // Show user-friendly error notification
+      showNotification({
+        title: 'Recording Failed',
+        message: `Failed to start recording: ${error?.message || 'Unknown error'}. Please try again.`,
+        color: 'red',
+        autoClose: false,
+      });
+      
+      // Re-throw to allow caller to handle if needed
+      throw error;
+    }
   },
 
   updateRecordedTime: () => {
@@ -803,26 +1006,37 @@ async function startCountdown() {
 
       /**
        * Play the countdown audio when the countdown is less than 1000ms
+       * In Electron, we skip audio playback to avoid crashes during recording setup
        */
       if (remainingCountdown <= 1000 && !playedAudio) {
-        console.log('[startCountdown] Playing countdown audio');
-        try {
-          playAudio('/assets/sound/timer.mp3', 0.5, () => {
-            console.log('[startCountdown] Audio finished');
-            audioDone = true;
-          });
-          // Set a timeout to mark audio as done if callback never fires (max 1 second)
-          setTimeout(() => {
-            if (!audioDone) {
-              console.warn('[startCountdown] Audio callback timeout, continuing anyway');
+        const isElectron = window.navigator.userAgent.includes('Electron');
+        
+        if (isElectron) {
+          // Skip audio playback in Electron to prevent crashes
+          // The countdown will still work, just without the audio beep
+          console.log('[startCountdown] Skipping audio playback in Electron to prevent crashes');
+          audioDone = true;
+          playedAudio = true;
+        } else {
+          console.log('[startCountdown] Playing countdown audio');
+          try {
+            playAudio('/assets/sound/timer.mp3', 0.5, () => {
+              console.log('[startCountdown] Audio finished');
               audioDone = true;
-            }
-          }, 1000);
-        } catch (err) {
-          console.warn('[startCountdown] Audio play failed, continuing anyway', err);
-          audioDone = true; // Continue even if audio fails
+            });
+            // Set a timeout to mark audio as done if callback never fires (max 1 second)
+            setTimeout(() => {
+              if (!audioDone) {
+                console.warn('[startCountdown] Audio callback timeout, continuing anyway');
+                audioDone = true;
+              }
+            }, 1000);
+          } catch (err) {
+            console.warn('[startCountdown] Audio play failed, continuing anyway', err);
+            audioDone = true; // Continue even if audio fails
+          }
+          playedAudio = true;
         }
-        playedAudio = true;
       }
 
       // Countdown is finished, resolve
@@ -869,7 +1083,17 @@ async function startCountdown() {
           const mediaRecorder = useRecordStore.getState().mediaRecorder;
           if (mediaRecorder && !useRecordStore.getState().canMaxRecordingTimeEventOccured) {
             console.log('[startCountdown] Starting MediaRecorder with TIMESLICE', TIMESLICE);
-            mediaRecorder.start(TIMESLICE);
+            console.log('[recordStore] Step 10: Starting MediaRecorder...', { timeslice: TIMESLICE });
+            try {
+              mediaRecorder.start(TIMESLICE);
+              console.log('[recordStore] Step 10a: MediaRecorder started successfully', { state: mediaRecorder.state });
+            } catch (err) {
+              console.error('[recordStore] Step 10 ERROR: MediaRecorder.start() failed', err);
+              set({ startLock: false });
+              // Clean up streams
+              recordStream.getTracks().forEach(track => track.stop());
+              throw err;
+            }
             console.log('[startCountdown] MediaRecorder started, state:', mediaRecorder.state);
           } else {
             console.warn('[startCountdown] Cannot start MediaRecorder', {

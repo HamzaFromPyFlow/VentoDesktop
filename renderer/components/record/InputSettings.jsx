@@ -197,9 +197,39 @@ export default function InputSettings({ children, onResolutionClick }) {
   }, [mode, cameraStream, isCameraRecording, recordStoreWebcamStream]);
 
   // Initial camera access request and device enumeration
+  // Delay initialization to avoid exit code 11 crash on Electron startup
   useEffect(() => {
     const initCamera = async () => {
       try {
+        // Increased delay to avoid crash on Electron startup (exit code 11)
+        // Media device access immediately on startup can cause SIGSEGV crashes
+        // Wait longer to ensure Electron renderer is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Check if we're in Electron
+        const isElectron = window.navigator.userAgent.includes('Electron');
+        if (isElectron) {
+          // Additional check: ensure window is fully loaded
+          if (document.readyState !== 'complete') {
+            await new Promise(resolve => {
+              if (document.readyState === 'complete') {
+                resolve();
+              } else {
+                window.addEventListener('load', resolve, { once: true });
+              }
+            });
+            // Wait a bit more after load
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+        
+        // Check if mediaDevices is available
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          console.warn('[InputSettings] MediaDevices API not available');
+          setCameraDenied(true);
+          return;
+        }
+        
         // Request access to enumerate devices
         await navigator.mediaDevices.getUserMedia({ video: true });
         await getVideoDevices();
