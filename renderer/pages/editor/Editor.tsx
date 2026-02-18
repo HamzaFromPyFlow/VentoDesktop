@@ -76,6 +76,7 @@ function EditorPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<any>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const unsubEditorStoreRef = useRef<(() => void) | null>(null);
   const [buffering, setBuffering] = useState(false);
   
   const [currentVideoDuration, setCurrentVideoDuration] = useState(0);
@@ -161,44 +162,50 @@ function EditorPage() {
 
   // Load recording data from URL params if editing existing recording
   useEffect(() => {
-    if (recordingId) {
-      // Load recording from API
-      webAPI.recording.recordingGetRecording(recordingId)
-        .then((recording: any) => {
-          setCurrentRecording(recording);
-          setInfo({
-            videoChapterHeadings: recording.metadata?.headings ?? [],
-            videoAnnotations: recording.metadata?.annotations ?? [],
-            videoCTAs: recording.metadata?.ctas ?? [],
-            videoBlur: recording.metadata?.blur ?? [],
+    if (!recordingId) return;
+
+    // Clear any previous subscription to avoid ghost subscription / render loop (Exit Code 11)
+    unsubEditorStoreRef.current?.();
+    unsubEditorStoreRef.current = null;
+
+    webAPI.recording.recordingGetRecording(recordingId)
+      .then((recording: any) => {
+        setCurrentRecording(recording);
+        setInfo({
+          videoChapterHeadings: recording.metadata?.headings ?? [],
+          videoAnnotations: recording.metadata?.annotations ?? [],
+          videoCTAs: recording.metadata?.ctas ?? [],
+          videoBlur: recording.metadata?.blur ?? [],
+        });
+
+        if (!useRecordStore.getState().currentRecording) {
+          useRecordStore.setState({
+            recordingState: "paused",
+            currentRecording: recording,
           });
 
-          // Set recording in store like web version
-          if (!useRecordStore.getState().currentRecording) {
-            useRecordStore.setState({
-              recordingState: "paused",
-              currentRecording: recording,
-            });
+          // One-time sync when totalVideoDuration is set; must unsubscribe to prevent loop
+          unsubEditorStoreRef.current = useEditorStore.subscribe((state, prev) => {
+            if (
+              state.totalVideoDuration !== prev.totalVideoDuration &&
+              state.totalVideoDuration > 0
+            ) {
+              const countdownTime =
+                useRecordStore.getState().maxRecordingTime - state.totalVideoDuration;
+              useRecordStore.setState({ currentRecordingTime: countdownTime });
+            }
+          });
+        }
+      })
+      .catch((err: any) => {
+        console.error('Error loading recording:', err);
+        setProcessingError('Failed to load recording. Please try again.');
+      });
 
-            // After the recording is loaded, we need to update the countdown time.
-            // We'll need to wait until totalVideoDuration is updated (handled by the video player), then we can calculate the countdown time.
-            // This matches the web version's subscription pattern
-            useEditorStore.subscribe((state, prev) => {
-              if (state.totalVideoDuration !== prev.totalVideoDuration && state.totalVideoDuration > 0) {
-                const countdownTime =
-                  useRecordStore.getState().maxRecordingTime -
-                  state.totalVideoDuration;
-
-                useRecordStore.setState({ currentRecordingTime: countdownTime });
-              }
-            });
-          }
-        })
-        .catch((err: any) => {
-          console.error('Error loading recording:', err);
-          setProcessingError('Failed to load recording. Please try again.');
-        });
-    }
+    return () => {
+      unsubEditorStoreRef.current?.();
+      unsubEditorStoreRef.current = null;
+    };
   }, [recordingId]);
 
   /**
@@ -754,29 +761,44 @@ function EditorPage() {
                     <Loader className={styles.bufferingLoader} color="green" />
                   )}
                 </div>
-                {/* <Timeline
-                  onCurrentTimeUpdate={handleCurrentTimeUpdate}
-                  headings={info.videoChapterHeadings as any}
-                  onHeadingClick={handleHeadingClick}
-                  annotations={info.videoAnnotations as any}
-                  onAnnotationClick={handleAnnotationClick}
-                  ctas={info.videoCTAs as any}
-                  onCtaClick={(index: number) => {
-                    setInfo({ currentCta: info.videoCTAs[index] });
-                    useEditorStore.setState({ ctaMode: true });
-                    if (videoRef.current) {
-                      videoRef.current.currentTime = info.videoCTAs[index].time / 1000;
-                    }
-                  }}
-                  onCtaDurationUpdate={(index: number, duration: number) => {
-                    const updatedCtas = [...info.videoCTAs];
-                    updatedCtas[index].time = duration;
-                    setInfo({ videoCTAs: updatedCtas });
-                    setIsVideoEdit(true);
-                  }}
-                  blur={info.videoBlur as any}
-                  audioUrl={audioUrl}
-                /> */}
+                {videoElement && totalVideoDuration > 0 ? (
+                  <Timeline
+                    onCurrentTimeUpdate={handleCurrentTimeUpdate}
+                    headings={info.videoChapterHeadings as any}
+                    onHeadingClick={handleHeadingClick}
+                    annotations={info.videoAnnotations as any}
+                    onAnnotationClick={handleAnnotationClick}
+                    ctas={info.videoCTAs as any}
+                    onCtaClick={(index: number) => {
+                      setInfo({ currentCta: info.videoCTAs[index] });
+                      useEditorStore.setState({ ctaMode: true });
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = info.videoCTAs[index].time / 1000;
+                      }
+                    }}
+                    onCtaDurationUpdate={(index: number, duration: number) => {
+                      const updatedCtas = [...info.videoCTAs];
+                      updatedCtas[index].time = duration;
+                      setInfo({ videoCTAs: updatedCtas });
+                      setIsVideoEdit(true);
+                    }}
+                    blur={info.videoBlur as any}
+                    audioUrl={audioUrl}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      height: '100px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#f5f5f5',
+                    }}
+                  >
+                    <Loader size="sm" />
+                    <span style={{ marginLeft: '10px' }}>Initializing Editor...</span>
+                  </div>
+                )}
                 <div className={styles.videoActionContainer}>
                   <button
                     id="playPauseBtn"

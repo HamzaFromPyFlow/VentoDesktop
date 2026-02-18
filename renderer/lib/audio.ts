@@ -42,55 +42,77 @@ export async function playAudio(url: string, gainValue = 0.5, callback: (() => v
 }
 
 // https://css-tricks.com/making-an-audio-waveform-visualizer-with-vanilla-javascript/
+// Aligned with vento web: no url = draw empty canvas (no AudioContext, no crash).
 export async function visualizeAudio(
   canvas: HTMLCanvasElement,
   totalVideoDuration: number,
-  url?: string | null
+  url?: string | null,
+  signal?: AbortSignal
 ) {
-  if (totalVideoDuration == 0) { 
+  if (totalVideoDuration === 0 || !canvas) {
+    draw([], canvas);
     return;
   }
-  var AudioContext =
-    window?.AudioContext || // Default
-    false;
 
-  if (AudioContext && url) {
-    const context = new AudioContext();
+  if (!url) {
+    draw([], canvas);
+    return;
+  }
 
-    const res = await fetch(url);
+  const AudioContextClass =
+    window?.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+  if (!AudioContextClass) {
+    draw([], canvas);
+    return;
+  }
+
+  const context = new AudioContextClass();
+
+  try {
+    const res = await fetch(url, { signal });
     const buffer = await res.arrayBuffer();
     const audioBuffer = await context.decodeAudioData(buffer);
-
     const normalizedData = normalizeData(filterData(audioBuffer, totalVideoDuration));
     draw(normalizedData, canvas);
-  } else {
+  } catch (err) {
+    if ((err as Error).name !== 'AbortError') {
+      console.error('Audio visualization error:', err);
+    }
     draw([], canvas);
+  } finally {
+    if (context.state !== 'closed') {
+      await context.close();
+    }
   }
 }
 
+// Safe for Electron: guard zero-width canvas to avoid renderer crash (Exit Code 11).
 function draw(normalizedData: number[], canvas: HTMLCanvasElement) {
+  if (!canvas || canvas.offsetWidth === 0) return;
+
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = canvas.offsetWidth * dpr;
-  canvas.height = canvas.offsetHeight * dpr;
+  const width = canvas.offsetWidth;
+  const height = canvas.offsetHeight;
 
-  const ctx = canvas.getContext("2d");
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
 
-  if (!ctx) {
-    console.log("Wave canvas's context can't be found");
-    return;
-  }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
 
   ctx.scale(dpr, dpr);
-  ctx.translate(0, canvas.offsetHeight / 2); // set Y = 0 to be in the middle of the canvas
+  ctx.clearRect(0, 0, width, height);
+  ctx.translate(0, height / 2);
 
-  // Width of the bars
-  const width = canvas.offsetWidth / normalizedData.length;
+  if (normalizedData.length === 0) return;
+
+  const barWidth = width / normalizedData.length;
   for (let i = 0; i < normalizedData.length; i++) {
-    const x = width * i;
-    // 0 - 1
-    let height = Math.max(1, normalizedData[i] * canvas.height);
-
-    drawBars(ctx, x, width, height);
+    const x = barWidth * i;
+    const barHeight = Math.max(1, normalizedData[i] * height * 0.8);
+    drawBars(ctx, x, barWidth, barHeight);
   }
 }
 
@@ -142,12 +164,18 @@ function filterData(audioBuffer: AudioBuffer, videoDuration:number) {
   return filteredData;
 }
 /**
- * This function finds the largest data point in the array with Math.max(),
- * takes its inverse with Math.pow(n, -1), and multiplies each value in the array by that number.
- * This guarantees that the largest data point will be set to 1, and the rest of the data will scale proportionally.
- * @param filteredData
+ * Normalize to 0–1 scale. Uses a loop instead of Math.max(...arr) to avoid
+ * stack overflow on large arrays (~100k+ elements) on macOS.
  */
 function normalizeData(filteredData: number[]) {
-  const multiplier = Math.pow(Math.max(...filteredData), -1);
+  if (filteredData.length === 0) return [];
+
+  let max = 0;
+  for (let i = 0; i < filteredData.length; i++) {
+    if (filteredData[i] > max) max = filteredData[i];
+  }
+  if (max === 0) return filteredData;
+
+  const multiplier = 1 / max;
   return filteredData.map((n) => n * multiplier);
 }

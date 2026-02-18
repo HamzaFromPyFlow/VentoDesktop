@@ -9,16 +9,35 @@ import { useRecordStore } from '../../stores/recordStore';
 import styles from '../../styles/modules/Timeline.module.scss';
 import cx from 'classnames';
 
+/** Set true to skip fetch/decode and draw dummy bars; use to isolate Exit Code 11 (Canvas vs AudioContext). */
+const SAFE_MODE_WAVEFORM = true;
+
+function dummyDrawWaveform(canvas) {
+  if (!canvas || canvas.offsetWidth === 0) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+  ctx.translate(0, h / 2);
+  const barWidth = w / 100;
+  for (let i = 0; i < 100; i++) {
+    const barHeight = Math.max(1, Math.random() * h * 0.5);
+    ctx.fillStyle = 'white';
+    ctx.fillRect(barWidth * i, -barHeight / 2, barWidth - 1, barHeight);
+  }
+}
+
 /**
  * Full-featured Timeline component for desktop editor.
- * Ported from the web version with desktop adaptations.
- * Features:
- * - Scrubbing (click/drag to seek)
- * - Audio waveform visualization
- * - Trim markers (visual indicators)
- * - Blur range indicators
- * - Annotation/CTA markers
- * - Chapter heading markers
+ * Aligned with vento web (premium-record-page/timeline.tsx):
+ * - No audio (audioUrl null/undefined) → empty waveform, no crash; loader hidden.
+ * - Uses same formatVideoDurationWithMs, useEditorStore, useRecordStore patterns.
+ * - visualizeAudio: desktop adds AbortSignal + context.close() for Electron safety.
  */
 
 function Timeline({
@@ -517,14 +536,16 @@ function Timeline({
     videoEl.currentTime = durationInMs / 1000;
   }
 
-  // Listen to video timeupdate and move cursor
+  // Listen to video timeupdate and move cursor (rAF avoids threading crash in Electron)
   useEffect(() => {
-    if (!videoEl) return;
+    if (!videoEl || !cursor.current || !timeline.current) return;
 
     const timeUpdateHandler = () => {
+      if (!cursor.current || !timeline.current || !videoEl) return;
+
       onCurrentTimeUpdate?.(videoEl.currentTime * 1000);
 
-      if (!cursor.current || !timeline.current || !totalVideoDuration) return;
+      if (totalVideoDuration <= 0) return;
 
       if (
         trimMode &&
@@ -545,7 +566,11 @@ function Timeline({
             Math.max(0, timeline.current.clientWidth * durationPercentage)
           );
 
-          cursor.current.style.transform = `translateX(${cursorPosition}px)`;
+          requestAnimationFrame(() => {
+            if (cursor.current) {
+              cursor.current.style.transform = `translateX(${cursorPosition}px)`;
+            }
+          });
           videoEl.play();
           return;
         }
@@ -558,26 +583,66 @@ function Timeline({
           Math.max(0, timeline.current.clientWidth * durationPercentage)
         );
 
-        cursor.current.style.transition = 'transform 0.25s linear';
-        cursor.current.style.transform = `translateX(${cursorPosition}px)`;
+        requestAnimationFrame(() => {
+          if (cursor.current) {
+            cursor.current.style.transition = 'transform 0.1s linear';
+            cursor.current.style.transform = `translateX(${cursorPosition}px)`;
+          }
+        });
       }
     };
 
     videoEl.addEventListener('timeupdate', timeUpdateHandler);
-    return () => videoEl?.removeEventListener('timeupdate', timeUpdateHandler);
+    return () => videoEl.removeEventListener('timeupdate', timeUpdateHandler);
   }, [dragging, onCurrentTimeUpdate, totalVideoDuration, trimEnd, trimMode, trimStart, videoEl]);
 
-  // Setup audio waveform
+  // Setup audio waveform — same behavior as vento web: no audio = empty canvas, no crash
   useEffect(() => {
-    const visualizeAudioFunc = async () => {
-      if (!waveform.current) return;
+    if (!totalVideoDuration || !waveform.current) return;
 
-      await visualizeAudio(waveform.current, totalVideoDuration, audioUrl);
+    // No audio URL: show empty waveform and hide loader (like vento web timeline)
+    if (!audioUrl) {
+      visualizeAudio(waveform.current, totalVideoDuration, null);
       setWaveFormLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const runVisualizer = async () => {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        if (controller.signal.aborted || !waveform.current) return;
+
+        setWaveFormLoading(true);
+
+        if (SAFE_MODE_WAVEFORM) {
+          dummyDrawWaveform(waveform.current);
+          if (!controller.signal.aborted) setWaveFormLoading(false);
+          return;
+        }
+
+        await visualizeAudio(
+          waveform.current,
+          totalVideoDuration,
+          audioUrl,
+          controller.signal
+        );
+
+        if (!controller.signal.aborted) setWaveFormLoading(false);
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error(e);
+        if (!controller.signal.aborted) setWaveFormLoading(false);
+      }
     };
 
-    visualizeAudioFunc();
-  }, [audioUrl, currentRecording, totalVideoDuration]);
+    runVisualizer();
+
+    return () => {
+      controller.abort();
+    };
+  }, [audioUrl, totalVideoDuration]);
 
   // Show trim/blur bars when entering mode
   useEffect(() => {

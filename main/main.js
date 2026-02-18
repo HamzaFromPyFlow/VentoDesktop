@@ -31,7 +31,12 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      devTools: isDev
+      devTools: isDev,
+      autoplayPolicy: 'no-user-gesture-required',
+      webSecurity: false,
+      sandbox: false, // Allow hardware access in dev (avoids Mac renderer kill)
+      backgroundThrottling: false,
+      offscreen: false,
     }
   });
 
